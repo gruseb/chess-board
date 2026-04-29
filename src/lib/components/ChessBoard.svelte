@@ -14,23 +14,29 @@
 	let targetSquare = $state<string | null>(null);
 
 	function onSquareClick(square: string, piece: any) {
+		if (selectedSquare) {
+			// Attempt to move to this square (whether empty or occupied for capture)
+			const result = game.move(selectedSquare, square);
+			if (result) {
+				selectedSquare = null;
+				return;
+			}
+		}
+		
+		// If we reach here, we either had nothing selected, or the move was invalid.
+		// Try to select the clicked piece, if any.
 		if (piece) {
-			selectedSquare = square;
-		} else {
-			// Clicked empty square
-			if (selectedSquare) {
-				// Attempt to move
-				const result = game.move(selectedSquare, square);
-				if (result) {
-					selectedSquare = null;
-				} else {
-					targetSquare = square; // Show visual feedback for empty square click
-					setTimeout(() => { targetSquare = null; }, 500);
-				}
-			} else {
+			if (game.mode === 'engine' && piece.color !== game.playerColor) {
+				// Prevent selecting opponent's pieces in engine mode
 				targetSquare = square;
 				setTimeout(() => { targetSquare = null; }, 500);
+				return;
 			}
+			selectedSquare = square;
+		} else {
+			// Clicked empty square without a valid selected piece
+			targetSquare = square;
+			setTimeout(() => { targetSquare = null; }, 500);
 		}
 	}
 
@@ -57,11 +63,11 @@
 	<div class="absolute inset-0 mist-overlay opacity-30"></div>
 	
 	<!-- Coordinate Labels -->
-	<div class="absolute top-1 left-4 right-4 flex justify-between text-[10px] text-outline uppercase font-bold tracking-widest opacity-30 z-10 pointer-events-none">
+	<div class="absolute top-1 left-4 right-4 flex justify-between text-[10px] text-outline uppercase font-bold tracking-widest opacity-30 z-10 pointer-events-none {game.playerColor === 'b' ? 'rotate-180 flex-row-reverse' : ''}">
 		<span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span>
 	</div>
 
-	<div class="w-full h-full rounded-lg overflow-hidden border border-outline-variant/20 grid grid-cols-8 grid-rows-8 relative z-20">
+	<div class="w-full h-full rounded-lg overflow-hidden border border-outline-variant/20 grid grid-cols-8 grid-rows-8 relative z-20 {game.playerColor === 'b' ? 'rotate-180' : ''}">
 		{#each game.board as row, rowIndex}
 			{#each row as piece, colIndex}
 				{@const square = getSquare(rowIndex, colIndex)}
@@ -86,7 +92,9 @@
 					{/if}
 
 					<!-- The Piece -->
-					<Piece {piece} {square} />
+					<div class={game.playerColor === 'b' ? 'rotate-180 w-full h-full' : 'w-full h-full'}>
+						<Piece {piece} {square} />
+					</div>
 				</div>
 			{/each}
 		{/each}

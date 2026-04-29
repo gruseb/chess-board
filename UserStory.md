@@ -9,3 +9,4 @@
 9. Als Benutzer möchte ich, dass ich eine Game-History, wo ich mir alle meine Partien ansehen kann.
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen lassen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 11. Als User möchte ich gegen Stockfish spielen können und die Schwierigkeit anpassen können.
+12. Als User möchte ich, möchte ich in der Navbar einen Reiter sehen, wo ich meine Partien sehen kann und wenn ich auf eine Partie klicke, kann ich mir diese ansehen und die Züge nachvollziehen.

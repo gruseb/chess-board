@@ -21,9 +21,35 @@
 	<div class="space-y-3">
 		<h3 class="font-headline text-lg font-semibold text-primary">Sacrificial Rites</h3>
 		<div class="flex bg-surface-container-lowest p-1 rounded-xl gap-1">
-			<button class="flex-1 py-2 px-4 rounded-lg bg-surface-container-highest text-on-surface font-medium text-sm shadow-sm">Local PvP</button>
-			<button class="flex-1 py-2 px-4 rounded-lg text-on-surface-variant font-medium text-sm hover:bg-white/5 transition-colors cursor-not-allowed opacity-50" title="Coming soon">vs Engine</button>
+			<button 
+				class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'local' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
+				onclick={() => game.setMode('local')}
+			>
+				Local PvP
+			</button>
+			<button 
+				class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'engine' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
+				onclick={() => game.setMode('engine')}
+			>
+				vs Engine
+			</button>
 		</div>
+
+		{#if game.mode === 'engine'}
+			<div class="space-y-2 pt-2 animate-in fade-in">
+				<div class="flex justify-between items-center text-sm">
+					<span class="text-on-surface-variant">Difficulty</span>
+					<span class="text-primary font-bold">{game.engineDifficulty}</span>
+				</div>
+				<input 
+					type="range" 
+					min="1" 
+					max="10" 
+					bind:value={game.engineDifficulty}
+					class="w-full accent-primary bg-surface-container-highest rounded-lg h-2 appearance-none cursor-pointer"
+				/>
+			</div>
+		{/if}
 	</div>
 
 	<!-- Move History -->

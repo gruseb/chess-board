@@ -5,19 +5,6 @@
 
 </script>
 
-<!-- TopNavBar -->
-<header class="bg-slate-950/80 backdrop-blur-xl font-['Epilogue'] tracking-tight top-0 sticky z-50 border-b border-transparent bg-gradient-to-b from-slate-900 to-transparent shadow-[0_4px_20px_rgba(255,145,84,0.1)] flex justify-between items-center w-full px-6 py-4">
-	<div class="flex items-center gap-8">
-		<div class="text-2xl font-bold text-primary italic">The Ethereal Grandmaster</div>
-	</div>
-	<div class="flex items-center gap-4">
-		<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-highest rounded-full border border-outline-variant/30">
-			<span class="material-symbols-outlined text-primary">account_circle</span>
-			<span class="text-sm font-medium">Player 1</span>
-		</div>
-	</div>
-</header>
-
 <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 	
 	<!-- Main Game Canvas -->
