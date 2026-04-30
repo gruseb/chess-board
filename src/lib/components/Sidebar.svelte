@@ -73,8 +73,30 @@
 		</div>
 	</div>
 
+	<!-- Save Actions -->
+	<div class="space-y-3 pt-4 border-t border-outline-variant/10">
+		<h4 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant/60 px-1">Speicher-Optionen</h4>
+		<div class="grid grid-cols-1 gap-2">
+			<button 
+				class="flex items-center gap-3 py-2.5 px-4 bg-surface-container-highest/50 rounded-xl text-on-surface text-sm font-medium hover:bg-surface-container-highest transition-all border border-outline-variant/10 active:scale-95 disabled:opacity-50"
+				onclick={() => game.saveCurrentGame()}
+				disabled={game.history.length === 0}
+			>
+				<span class="material-symbols-outlined text-primary text-xl">save</span>
+				Partie speichern (PGN)
+			</button>
+			<button 
+				class="flex items-center gap-3 py-2.5 px-4 bg-surface-container-highest/50 rounded-xl text-on-surface text-sm font-medium hover:bg-surface-container-highest transition-all border border-outline-variant/10 active:scale-95"
+				onclick={() => game.saveCurrentPosition()}
+			>
+				<span class="material-symbols-outlined text-secondary text-xl">location_on</span>
+				Position speichern (FEN)
+			</button>
+		</div>
+	</div>
+
 	<!-- Quick Actions -->
-	<div class="grid grid-cols-2 gap-3 mt-auto">
+	<div class="grid grid-cols-2 gap-3 mt-auto pt-4">
 		<button 
 			class="flex items-center justify-center gap-2 py-3 bg-surface-container-highest rounded-xl text-on-surface font-semibold hover:bg-surface-bright transition-all border border-outline-variant/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
 			onclick={() => game.undo()}

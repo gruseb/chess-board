@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { resolve } from '$app/paths';
     let { data } = $props();
 </script>
 
@@ -17,7 +18,7 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-outline-variant/5">
-                {#each data.games as game}
+                {#each data.games as game (game.id)}
                     <tr class="hover:bg-white/5 transition-colors">
                         <td class="p-4 text-on-surface">{new Date(game.created_at).toLocaleString()}</td>
                         <td class="p-4 text-on-surface">{game.white_player}</td>
@@ -32,7 +33,7 @@
                             {/if}
                         </td>
                         <td class="p-4">
-                            <a href={`/history/${game.id}`} class="text-primary hover:underline font-semibold flex items-center gap-1">
+                            <a href={resolve(`/history/${game.id}`)} class="text-primary hover:underline font-semibold flex items-center gap-1">
                                 <span class="material-symbols-outlined text-sm">visibility</span>
                                 Ansehen
                             </a>

@@ -10,6 +10,21 @@
 	<!-- Main Game Canvas -->
 	<section class="flex-1 flex flex-col items-center justify-center p-4 lg:p-8 space-y-6 overflow-y-auto relative">
 		
+		<!-- Notifications -->
+		{#if game.notification}
+			<div class="fixed top-24 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4">
+				<div class="flex items-center gap-3 px-6 py-3 rounded-2xl border shadow-2xl backdrop-blur-md
+					{game.notification.type === 'success' 
+						? 'bg-primary/20 border-primary/40 text-primary shadow-primary/20' 
+						: 'bg-error/20 border-error/40 text-error shadow-error/20'}">
+					<span class="material-symbols-outlined">
+						{game.notification.type === 'success' ? 'check_circle' : 'error'}
+					</span>
+					<span class="font-bold tracking-tight">{game.notification.message}</span>
+				</div>
+			</div>
+		{/if}
+		
 		<!-- Game Over Overlay -->
 		{#if game.isGameOver}
 			<div class="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">

@@ -3,11 +3,17 @@ import { supabase } from '$lib/supabaseClient';
 
 export type GameMode = 'local' | 'engine';
 
+export type SaveNotification = {
+	message: string;
+	type: 'success' | 'error';
+} | null;
+
 export class GameStore {
 	private chess = $state(new Chess());
 	mode = $state<GameMode>('local');
 	engineDifficulty = $state(8); // 1-10
 	playerColor = $state<'w' | 'b'>('w');
+	notification = $state<SaveNotification>(null);
 	
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
@@ -88,6 +94,77 @@ export class GameStore {
 			console.error('Failed to save game to Supabase:', error);
 		} else {
 			console.log('Game saved successfully!');
+		}
+	}
+
+	private showNotification(message: string, type: 'success' | 'error') {
+		this.notification = { message, type };
+		setTimeout(() => { this.notification = null; }, 3000);
+	}
+
+	/** US13: Partie bis zum aktuellen Zeitpunkt speichern */
+	async saveCurrentGame() {
+		const pgn = this.chess.pgn();
+		if (!pgn) {
+			this.showNotification('Keine Züge zum Speichern vorhanden.', 'error');
+			return;
+		}
+
+		let whitePlayer = 'User';
+		let blackPlayer = 'User';
+		let difficulty = null;
+
+		if (this.mode === 'engine') {
+			if (this.playerColor === 'w') {
+				blackPlayer = 'Stockfish';
+				difficulty = this.engineDifficulty;
+			} else {
+				whitePlayer = 'Stockfish';
+				difficulty = this.engineDifficulty;
+			}
+		}
+
+		let resultStr = 'in_progress';
+		if (this.isGameOver) {
+			if (this.isCheckmate) {
+				resultStr = this.turn === 'w' ? 'black_won' : 'white_won';
+			} else {
+				resultStr = 'draw';
+			}
+		}
+
+		const { error } = await supabase.from('partie').insert({
+			pgn,
+			white_player: whitePlayer,
+			black_player: blackPlayer,
+			result: resultStr,
+			difficulty
+		});
+
+		if (error) {
+			console.error('Failed to save game:', error);
+			this.showNotification('Fehler beim Speichern der Partie.', 'error');
+		} else {
+			this.showNotification('Partie erfolgreich gespeichert!', 'success');
+		}
+	}
+
+	/** US14: Aktuelle Position (FEN) speichern */
+	async saveCurrentPosition() {
+		const fen = this.chess.fen();
+		const colorToMove = this.turn === 'w' ? 'white' : 'black';
+
+		const { error } = await supabase.from('position').insert({
+			fen,
+			color_to_move: colorToMove,
+			title: `Position nach Zug ${this.history.length}`
+		});
+
+		if (error) {
+			console.error('Failed to save position:', error);
+			this.showNotification('Fehler beim Speichern der Position.', 'error');
+		} else {
+			this.showNotification('Position erfolgreich gespeichert!', 'success');
 		}
 	}
 

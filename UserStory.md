@@ -10,3 +10,6 @@
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen lassen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 11. Als User möchte ich gegen Stockfish spielen können und die Schwierigkeit anpassen können.
 12. Als User möchte ich, möchte ich in der Navbar einen Reiter sehen, wo ich meine Partien sehen kann und wenn ich auf eine Partie klicke, kann ich mir diese ansehen und die Züge nachvollziehen.
+13. Ich möchte einen Button haben, dass ich die Partie bis zu diesem Zeitpunkt speichern kann und mir diese später ansehen kann.
+14. Ich möchte einen Button haben, wo ich die Position speichern kann, damit ich sie später noch einmal öffnen kann.
+15. Ich möchte mir die gespeicherten Positionen ansehen können. Wie es eine Game-History gibt, sollte es auch eine Position-History geben, wo ich mir die gespeicherten Positionen ansehen kann.

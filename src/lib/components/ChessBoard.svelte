@@ -13,7 +13,9 @@
 	let selectedSquare = $state<string | null>(null);
 	let targetSquare = $state<string | null>(null);
 
-	function onSquareClick(square: string, piece: any) {
+	type ChessPiece = { type: string; color: string } | null;
+	
+	function onSquareClick(square: string, piece: ChessPiece) {
 		if (selectedSquare) {
 			// Attempt to move to this square (whether empty or occupied for capture)
 			const result = game.move(selectedSquare, square);
@@ -68,8 +70,8 @@
 	</div>
 
 	<div class="w-full h-full rounded-lg overflow-hidden border border-outline-variant/20 grid grid-cols-8 grid-rows-8 relative z-20 {game.playerColor === 'b' ? 'rotate-180' : ''}">
-		{#each game.board as row, rowIndex}
-			{#each row as piece, colIndex}
+		{#each game.board as row, rowIndex (rowIndex)}
+			{#each row as piece, colIndex (getSquare(rowIndex, colIndex))}
 				{@const square = getSquare(rowIndex, colIndex)}
 				{@const isDark = (rowIndex + colIndex) % 2 === 1}
 				
