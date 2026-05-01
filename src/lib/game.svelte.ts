@@ -152,6 +152,26 @@ export class GameStore {
 	/** US14: Aktuelle Position (FEN) speichern */
 	async saveCurrentPosition() {
 		const fen = this.chess.fen();
+		
+		// 1. Anfangsstellung nicht speichern
+		const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+		if (fen === STARTING_FEN) {
+			this.showNotification('Anfangsstellung muss nicht gespeichert werden.', 'error');
+			return;
+		}
+
+		// 2. Dubletten-Check
+		const { data: existing } = await supabase
+			.from('position')
+			.select('id')
+			.eq('fen', fen)
+			.maybeSingle();
+
+		if (existing) {
+			this.showNotification('Diese Position ist bereits gespeichert.', 'error');
+			return;
+		}
+
 		const colorToMove = this.turn === 'w' ? 'white' : 'black';
 
 		const { error } = await supabase.from('position').insert({
@@ -229,6 +249,21 @@ export class GameStore {
 		newChess.loadPgn(this.chess.pgn());
 		this.chess = newChess;
 		return result;
+	}
+
+	loadFen(fen: string) {
+		try {
+			const newChess = new Chess(fen);
+			this.chess = newChess;
+			this.showNotification('Position geladen!', 'success');
+			
+			if (this.mode === 'engine' && this.turn !== this.playerColor) {
+				setTimeout(() => this.triggerEngineMove(), 500);
+			}
+		} catch (e) {
+			console.error('Failed to load FEN:', e);
+			this.showNotification('Fehler beim Laden der Position.', 'error');
+		}
 	}
 }
 
