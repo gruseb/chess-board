@@ -8,7 +8,6 @@
 7. Als Benutzer möchte ich die Möglichkeit haben, ein neues Spiel zu starten, um eine Partie mit der Startaufstellung zu beginnen.
 8. Als Benutzer möchte ich, dass das Programm nach jedem Zug automatisch prüft, ob ein Schachmatt oder Patt eingetreten ist.
 9. Als Benutzer möchte ich, dass ich eine Game-History, wo ich mir alle meine Partien ansehen kann.
-
 11. Als User möchte ich gegen Stockfish spielen können und die Schwierigkeit anpassen können.
 12. Als User möchte ich, möchte ich in der Navbar einen Reiter sehen, wo ich meine Partien sehen kann und wenn ich auf eine Partie klicke, kann ich mir diese ansehen und die Züge nachvollziehen.
 13. Ich möchte einen Button haben, dass ich die Partie bis zu diesem Zeitpunkt speichern kann und mir diese später ansehen kann.

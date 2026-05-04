@@ -12,7 +12,7 @@
 		
 		<!-- Notifications -->
 		{#if game.notification}
-			<div class="fixed top-24 left-1/2 -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-4">
+			<div class="fixed top-24 left-1/2 -translate-x-1/2 z-60 animate-in fade-in slide-in-from-top-4">
 				<div class="flex items-center gap-3 px-6 py-3 rounded-2xl border shadow-2xl backdrop-blur-md
 					{game.notification.type === 'success' 
 						? 'bg-primary/20 border-primary/40 text-primary shadow-primary/20' 

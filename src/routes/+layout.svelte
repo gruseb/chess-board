@@ -12,13 +12,13 @@
 </svelte:head>
 
 <!-- TopNavBar -->
-<header class="bg-slate-950/80 backdrop-blur-xl font-['Epilogue'] tracking-tight top-0 sticky z-50 border-b border-transparent bg-gradient-to-b from-slate-900 to-transparent shadow-[0_4px_20px_rgba(255,145,84,0.1)] flex justify-between items-center w-full px-6 py-4">
+<header class="bg-slate-950/80 backdrop-blur-xl font-['Epilogue'] tracking-tight top-0 sticky z-50 border-b border-transparent bg-linear-to-b from-slate-900 to-transparent shadow-[0_4px_20px_rgba(255,145,84,0.1)] flex justify-between items-center w-full px-6 py-4">
 	<div class="flex items-center gap-8">
 		<a href={resolve('/')} class="text-2xl font-bold text-primary italic hover:text-primary-container transition-colors">The Ethereal Grandmaster</a>
 		<nav class="flex gap-6">
 			<a href={resolve('/')} class="text-sm font-semibold {$page.url.pathname === '/' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Play</a>
-			<a href={resolve('/history')} class="text-sm font-semibold {$page.url.pathname === '/history' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Game History</a>
-			<a href={resolve('/history/positions')} class="text-sm font-semibold {$page.url.pathname.startsWith('/history/positions') ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Positions</a>
+			<a href={resolve('/history/')} class="text-sm font-semibold {$page.url.pathname === '/history/' ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Game History</a>
+			<a href={resolve('/history/positions/')} class="text-sm font-semibold {$page.url.pathname.startsWith('/history/positions/') ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Positions</a>
 		</nav>
 	</div>
 	<div class="flex items-center gap-4">

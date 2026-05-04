@@ -2,7 +2,7 @@
 	import { game } from '$lib/game.svelte';
 
 	// Group history into pairs of [whiteMove, blackMove]
-	let movePairs = $derived(() => {
+	let movePairs = $derived.by(() => {
 		const h = game.history;
 		const pairs = [];
 		for (let i = 0; i < h.length; i += 2) {
@@ -61,7 +61,7 @@
 		<div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
 			<table class="w-full text-sm">
 				<tbody class="divide-y divide-outline-variant/5">
-					{#each movePairs() as pair}
+					{#each movePairs as pair (pair.moveNumber)}
 						<tr class="hover:bg-white/5 transition-colors">
 							<td class="py-2 text-outline-variant font-mono w-12">{pair.moveNumber}.</td>
 							<td class="py-2 font-medium text-on-surface">{pair.white.san}</td>

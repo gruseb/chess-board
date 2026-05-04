@@ -218,7 +218,7 @@ export class GameStore {
 			}
 
 			return result;
-		} catch (e) {
+		} catch {
 			return null;
 		}
 	}
