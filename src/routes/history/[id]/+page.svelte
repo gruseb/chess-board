@@ -1,6 +1,7 @@
 <script lang="ts">
     import { Chess } from 'chess.js';
     import Piece from '$lib/components/Piece.svelte';
+    import { resolve } from '$app/paths';
 
     let { data } = $props();
     
@@ -23,7 +24,7 @@
 
 <div class="max-w-5xl mx-auto p-4 lg:p-8 flex flex-col lg:flex-row gap-8 items-start">
     <div class="flex-1 w-full max-w-[600px]">
-        <a href="/history" class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6 font-semibold">
+        <a href={resolve('/history/')} class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6 font-semibold">
             <span class="material-symbols-outlined">arrow_back</span>
             Zurück zur Übersicht
         </a>
@@ -38,8 +39,8 @@
             </div>
 
             <div class="w-full h-full rounded-lg overflow-hidden border border-outline-variant/20 grid grid-cols-8 grid-rows-8 relative z-20 pointer-events-none">
-                {#each board as row, rowIndex}
-                    {#each row as piece, colIndex}
+                {#each board as row, rowIndex (rowIndex)}
+                    {#each row as piece, colIndex (getSquare(rowIndex, colIndex))}
                         {@const square = getSquare(rowIndex, colIndex)}
                         {@const isDark = (rowIndex + colIndex) % 2 === 1}
                         

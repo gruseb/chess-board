@@ -33,7 +33,7 @@
                             {/if}
                         </td>
                         <td class="p-4">
-                            <a href={resolve(`/history/${game.id}`)} class="text-primary hover:underline font-semibold flex items-center gap-1">
+                            <a href={resolve('/history/[id]', { id: game.id })} class="text-primary hover:underline font-semibold flex items-center gap-1">
                                 <span class="material-symbols-outlined text-sm">visibility</span>
                                 Ansehen
                             </a>
