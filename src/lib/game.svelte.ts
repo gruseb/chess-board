@@ -1,5 +1,6 @@
 import { Chess } from 'chess.js';
 import { supabase } from '$lib/supabaseClient';
+import { base } from '$app/paths';
 
 export type GameMode = 'local' | 'engine';
 
@@ -24,7 +25,7 @@ export class GameStore {
 
 	private initEngine() {
 		if (typeof window !== 'undefined') {
-			this.engineWorker = new Worker('/stockfish.js');
+			this.engineWorker = new Worker(`${base}/stockfish.js`);
 			this.engineWorker.onmessage = (event) => this.handleEngineMessage(event);
 			this.engineWorker.postMessage('uci');
 		}
