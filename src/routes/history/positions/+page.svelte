@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { resolve } from '$app/paths';
+    import { base } from '$app/paths';
     import { game } from '$lib/game.svelte';
     import { goto } from '$app/navigation';
     
@@ -7,14 +7,14 @@
 
     function openPosition(fen: string) {
         game.loadFen(fen);
-        goto(resolve('/'));
+        goto(`${base}/`);
     }
 </script>
 
 <div class="max-w-4xl mx-auto p-8">
     <div class="flex items-center justify-between mb-8">
         <h1 class="text-3xl font-headline font-bold text-primary">Gespeicherte Positionen</h1>
-        <a href={resolve('/history/')} class="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1">
+        <a href="{base}/history/" class="text-sm font-semibold text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1">
             <span class="material-symbols-outlined text-sm">history</span>
             Zur Partie-Historie
         </a>

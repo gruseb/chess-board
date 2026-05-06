@@ -1,7 +1,7 @@
 <script lang="ts">
     import { Chess } from 'chess.js';
     import Piece from '$lib/components/Piece.svelte';
-    import { resolve } from '$app/paths';
+    import { base } from '$app/paths';
 
     let { data } = $props();
     
@@ -24,7 +24,7 @@
 
 <div class="max-w-5xl mx-auto p-4 lg:p-8 flex flex-col lg:flex-row gap-8 items-start">
     <div class="flex-1 w-full max-w-[600px]">
-        <a href={resolve('/history/')} class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6 font-semibold">
+        <a href="{base}/history/" class="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6 font-semibold">
             <span class="material-symbols-outlined">arrow_back</span>
             Zurück zur Übersicht
         </a>
