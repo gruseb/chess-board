@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from '$env/static/public';
 
-export const supabase = (PUBLIC_SUPABASE_URL && PUBLIC_SUPABASE_ANON_KEY) 
-    ? createClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY)
-    : null as any; // Fallback for build time or missing keys
+// Always create a client instance to avoid null reference errors (e.g., "Cannot read properties of null (reading 'from')")
+// If keys are missing, the requests will simply fail instead of crashing the whole application.
+export const supabase = createClient(
+    PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co', 
+    PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+);
