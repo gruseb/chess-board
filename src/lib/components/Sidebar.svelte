@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { game } from '$lib/game.svelte';
+	import MoveTree from '$lib/components/MoveTree.svelte';
 
 	// Group history into pairs of [whiteMove, blackMove]
 	let movePairs = $derived.by(() => {
@@ -33,6 +34,12 @@
 			>
 				vs Engine
 			</button>
+			<button 
+				class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'analysis' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
+				onclick={() => game.setMode('analysis')}
+			>
+				Analyse
+			</button>
 		</div>
 
 		{#if game.mode === 'engine'}
@@ -50,26 +57,48 @@
 				/>
 			</div>
 		{/if}
+
+		{#if game.mode === 'analysis'}
+			<div class="flex items-center justify-between p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/10">
+				<span class="text-sm font-medium text-on-surface">Stockfish Analyse</span>
+				<button 
+					class="w-12 h-6 rounded-full transition-colors relative {game.isAnalyzing ? 'bg-primary' : 'bg-surface-container-highest'}"
+					onclick={() => game.toggleAnalysis()}
+				>
+					<div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform {game.isAnalyzing ? 'translate-x-6' : ''}"></div>
+				</button>
+			</div>
+		{/if}
 	</div>
 
-	<!-- Move History -->
+	<!-- Move History / Tree -->
 	<div class="flex-1 flex flex-col min-h-[300px] bg-surface-container-lowest rounded-2xl overflow-hidden border border-outline-variant/5">
 		<div class="p-3 bg-surface-container-highest/50 border-b border-outline-variant/10 flex items-center justify-between">
-			<span class="text-sm font-bold uppercase tracking-widest text-primary/70">Move History</span>
-			<span class="text-xs text-on-surface-variant">{game.history.length} Plies</span>
+			<span class="text-sm font-bold uppercase tracking-widest text-primary/70">
+				{game.mode === 'analysis' ? 'Variation Tree' : 'Move History'}
+			</span>
+			<span class="text-xs text-on-surface-variant">
+				{game.mode === 'analysis' ? 'Exploration' : `${game.history.length} Plies`}
+			</span>
 		</div>
 		<div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-			<table class="w-full text-sm">
-				<tbody class="divide-y divide-outline-variant/5">
-					{#each movePairs as pair (pair.moveNumber)}
-						<tr class="hover:bg-white/5 transition-colors">
-							<td class="py-2 text-outline-variant font-mono w-12">{pair.moveNumber}.</td>
-							<td class="py-2 font-medium text-on-surface">{pair.white.san}</td>
-							<td class="py-2 font-medium text-on-surface-variant/80">{pair.black ? pair.black.san : '...'}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
+			{#if game.mode === 'analysis'}
+				<div class="analysis-tree">
+					<MoveTree />
+				</div>
+			{:else}
+				<table class="w-full text-sm">
+					<tbody class="divide-y divide-outline-variant/5">
+						{#each movePairs as pair (pair.moveNumber)}
+							<tr class="hover:bg-white/5 transition-colors">
+								<td class="py-2 text-outline-variant font-mono w-12">{pair.moveNumber}.</td>
+								<td class="py-2 font-medium text-on-surface">{pair.white.san}</td>
+								<td class="py-2 font-medium text-on-surface-variant/80">{pair.black ? pair.black.san : '...'}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
 		</div>
 	</div>
 
@@ -80,7 +109,7 @@
 			<button 
 				class="flex items-center gap-3 py-2.5 px-4 bg-surface-container-highest/50 rounded-xl text-on-surface text-sm font-medium hover:bg-surface-container-highest transition-all border border-outline-variant/10 active:scale-95 disabled:opacity-50"
 				onclick={() => game.saveCurrentGame()}
-				disabled={game.history.length === 0}
+				disabled={game.history.length === 0 && game.mode !== 'analysis'}
 			>
 				<span class="material-symbols-outlined text-primary text-xl">save</span>
 				Partie speichern (PGN)
@@ -100,7 +129,7 @@
 		<button 
 			class="flex items-center justify-center gap-2 py-3 bg-surface-container-highest rounded-xl text-on-surface font-semibold hover:bg-surface-bright transition-all border border-outline-variant/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
 			onclick={() => game.undo()}
-			disabled={game.history.length === 0}
+			disabled={game.mode !== 'analysis' && game.history.length === 0}
 		>
 			<span class="material-symbols-outlined text-primary">undo</span>
 			Undo
@@ -114,7 +143,8 @@
 			onclick={() => game.reset()}
 		>
 			<span class="material-symbols-outlined">restart_alt</span>
-			Initiate New Séance
+			{game.mode === 'analysis' ? 'Analyse zurücksetzen' : 'Initiate New Séance'}
 		</button>
 	</div>
 </aside>
+

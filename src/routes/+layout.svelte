@@ -17,6 +17,7 @@
 		<a href="{base}/" class="text-2xl font-bold text-primary italic hover:text-primary-container transition-colors">The Ethereal Grandmaster</a>
 		<nav class="flex gap-6">
 			<a href="{base}/" class="text-sm font-semibold {$page.url.pathname === `${base}/` ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Play</a>
+			<a href="{base}/analysis" class="text-sm font-semibold {$page.url.pathname.startsWith(`${base}/analysis`) ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Analyse</a>
 			<a href="{base}/history/" class="text-sm font-semibold {$page.url.pathname === `${base}/history/` ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Game History</a>
 			<a href="{base}/history/positions/" class="text-sm font-semibold {$page.url.pathname.startsWith(`${base}/history/positions/`) ? 'text-primary' : 'text-on-surface-variant hover:text-on-surface'} transition-colors">Positions</a>
 		</nav>

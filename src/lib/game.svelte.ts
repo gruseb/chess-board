@@ -2,12 +2,29 @@ import { Chess } from 'chess.js';
 import { supabase } from '$lib/supabaseClient';
 import { base } from '$app/paths';
 
-export type GameMode = 'local' | 'engine';
+export type GameMode = 'local' | 'engine' | 'analysis';
 
 export type SaveNotification = {
 	message: string;
 	type: 'success' | 'error';
 } | null;
+
+// Flat node structure – no nested reactive objects, no proxy issues
+export interface AnalysisNode {
+	id: string;
+	san: string;
+	fen: string;
+	parentId: string | null;
+}
+
+// Keep MoveNode exported for any legacy usage (no internal use)
+export type MoveNode = AnalysisNode;
+
+const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+function makeId(): string {
+	return Math.random().toString(36).slice(2, 9);
+}
 
 export class GameStore {
 	private chess = $state(new Chess());
@@ -15,7 +32,15 @@ export class GameStore {
 	engineDifficulty = $state(8); // 1-10
 	playerColor = $state<'w' | 'b'>('w');
 	notification = $state<SaveNotification>(null);
-	
+
+	// Analysis state – flat array, guaranteed reactive
+	analysisEvaluation = $state<number | string>(0);
+	isAnalyzing = $state(false);
+	analysisNodes = $state<AnalysisNode[]>([
+		{ id: 'root', san: '', fen: STARTING_FEN, parentId: null }
+	]);
+	currentNodeId = $state<string>('root');
+
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
 
@@ -33,12 +58,17 @@ export class GameStore {
 
 	private handleEngineMessage(event: MessageEvent) {
 		const line = event.data;
-		console.log('[Stockfish]', line);
+
 		if (line === 'uciok') {
 			this.engineReady = true;
 			this.engineWorker?.postMessage('isready');
 		}
-		if (line.startsWith('bestmove')) {
+
+		if (line.startsWith('info') && this.isAnalyzing) {
+			this.parseAnalysisInfo(line);
+		}
+
+		if (line.startsWith('bestmove') && this.mode === 'engine') {
 			const move = line.split(' ')[1];
 			if (move && move !== '(none)') {
 				this.move(move.substring(0, 2), move.substring(2, 4), move.length === 5 ? move[4] : undefined, true);
@@ -46,23 +76,52 @@ export class GameStore {
 		}
 	}
 
+	private parseAnalysisInfo(line: string) {
+		const cpMatch = line.match(/score cp (-?\d+)/);
+		const mateMatch = line.match(/score mate (-?\d+)/);
+
+		if (mateMatch) {
+			const mateIn = parseInt(mateMatch[1]);
+			this.analysisEvaluation = `M${Math.abs(mateIn)}`;
+		} else if (cpMatch) {
+			const cp = parseInt(cpMatch[1]);
+			const evaluation = this.turn === 'w' ? cp / 100 : -cp / 100;
+			this.analysisEvaluation = evaluation;
+		}
+	}
+
+	private triggerAnalysis() {
+		if (!this.engineReady || !this.isAnalyzing) return;
+		this.engineWorker?.postMessage('stop');
+		this.engineWorker?.postMessage(`position fen ${this.chess.fen()}`);
+		this.engineWorker?.postMessage('go infinite');
+	}
+
+	toggleAnalysis(enabled?: boolean) {
+		this.isAnalyzing = enabled !== undefined ? enabled : !this.isAnalyzing;
+		if (this.isAnalyzing) {
+			this.triggerAnalysis();
+		} else {
+			this.engineWorker?.postMessage('stop');
+			this.analysisEvaluation = 0;
+		}
+	}
+
 	private triggerEngineMove() {
 		if (this.mode !== 'engine' || !this.engineReady) return;
 		if (this.turn === this.playerColor || this.isGameOver) return;
 
-		// Calculate Skill Level from difficulty (1-10 mapped to 0-20)
 		const skillLevel = Math.floor((this.engineDifficulty - 1) * (20 / 9));
 		this.engineWorker?.postMessage(`setoption name Skill Level value ${skillLevel}`);
 		this.engineWorker?.postMessage(`position fen ${this.chess.fen()}`);
-		
-		// Map difficulty to depth (1-10 -> 1-15)
+
 		const depth = Math.floor(1 + (this.engineDifficulty - 1) * (14 / 9));
 		this.engineWorker?.postMessage(`go depth ${depth}`);
 	}
 
 	private async saveGame() {
 		if (!this.isGameOver) return;
-		
+
 		let resultStr = 'draw';
 		if (this.isCheckmate) {
 			resultStr = this.turn === 'w' ? 'black_won' : 'white_won';
@@ -153,15 +212,12 @@ export class GameStore {
 	/** US14: Aktuelle Position (FEN) speichern */
 	async saveCurrentPosition() {
 		const fen = this.chess.fen();
-		
-		// 1. Anfangsstellung nicht speichern
-		const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
 		if (fen === STARTING_FEN) {
 			this.showNotification('Anfangsstellung muss nicht gespeichert werden.', 'error');
 			return;
 		}
 
-		// 2. Dubletten-Check
 		const { data: existing } = await supabase
 			.from('position')
 			.select('id')
@@ -189,7 +245,7 @@ export class GameStore {
 		}
 	}
 
-	// Computed properties for the board and game state
+	// Computed properties
 	get board() { return this.chess.board(); }
 	get turn() { return this.chess.turn(); }
 	get isGameOver() { return this.chess.isGameOver(); }
@@ -198,27 +254,61 @@ export class GameStore {
 	get isDraw() { return this.chess.isDraw(); }
 	get isCheck() { return this.chess.isCheck(); }
 	get history() { return this.chess.history({ verbose: true }); }
+	get fen() { return this.chess.fen(); }
+
+	// Helper: get direct children of a node by id
+	getChildren(parentId: string): AnalysisNode[] {
+		return this.analysisNodes.filter(n => n.parentId === parentId);
+	}
+
+	// Helper: get a node by id
+	getNode(id: string): AnalysisNode | undefined {
+		return this.analysisNodes.find(n => n.id === id);
+	}
 
 	// Actions
 	move(from: string, to: string, promotion: string = 'q', isEngineMove: boolean = false) {
 		try {
-			// Prevent user from manually moving during the engine's turn
 			if (this.mode === 'engine' && !isEngineMove && this.turn !== this.playerColor) {
 				return null;
 			}
 
-			const result = this.chess.move({ from, to, promotion });
+			const moveResult = this.chess.move({ from, to, promotion });
+			if (!moveResult) return null;
+
+			// Handle Analysis Tree with flat array
+			if (this.mode === 'analysis') {
+				// Check if this move already exists as a child of the current node
+				const existing = this.analysisNodes.find(
+					n => n.parentId === this.currentNodeId && n.san === moveResult.san
+				);
+				if (existing) {
+					this.currentNodeId = existing.id;
+				} else {
+					const newNode: AnalysisNode = {
+						id: makeId(),
+						san: moveResult.san,
+						fen: this.chess.fen(),
+						parentId: this.currentNodeId
+					};
+					// Array re-assignment = Svelte 5 definitely detects the change
+					this.analysisNodes = [...this.analysisNodes, newNode];
+					this.currentNodeId = newNode.id;
+				}
+				if (this.isAnalyzing) this.triggerAnalysis();
+			}
+
 			const newChess = new Chess();
 			newChess.loadPgn(this.chess.pgn());
 			this.chess = newChess;
 
-			if (this.isGameOver) {
+			if (this.isGameOver && this.mode !== 'analysis') {
 				this.saveGame();
 			} else if (this.mode === 'engine' && this.turn !== this.playerColor) {
 				setTimeout(() => this.triggerEngineMove(), 250);
 			}
 
-			return result;
+			return moveResult;
 		} catch {
 			return null;
 		}
@@ -226,11 +316,20 @@ export class GameStore {
 
 	setMode(newMode: GameMode) {
 		this.mode = newMode;
-		this.reset();
+		if (newMode === 'analysis') {
+			this.resetAnalysis();
+		} else {
+			this.reset();
+		}
 	}
 
 	reset() {
+		if (this.mode === 'analysis') {
+			this.resetAnalysis();
+			return;
+		}
 		this.chess = new Chess();
+		this.toggleAnalysis(false);
 		if (this.mode === 'engine') {
 			this.playerColor = Math.random() > 0.5 ? 'w' : 'b';
 			if (this.playerColor === 'b') {
@@ -241,7 +340,35 @@ export class GameStore {
 		}
 	}
 
+	resetAnalysis() {
+		this.chess = new Chess();
+		// Full replacement of the array – guaranteed reactive
+		this.analysisNodes = [
+			{ id: 'root', san: '', fen: STARTING_FEN, parentId: null }
+		];
+		this.currentNodeId = 'root';
+		this.toggleAnalysis(true);
+	}
+
+	jumpToNodeById(nodeId: string) {
+		const node = this.analysisNodes.find(n => n.id === nodeId);
+		if (!node) return;
+		this.currentNodeId = nodeId;
+		const newChess = new Chess();
+		newChess.load(node.fen);
+		this.chess = newChess;
+		if (this.isAnalyzing) this.triggerAnalysis();
+	}
+
 	undo() {
+		if (this.mode === 'analysis') {
+			const current = this.analysisNodes.find(n => n.id === this.currentNodeId);
+			if (current?.parentId) {
+				this.jumpToNodeById(current.parentId);
+			}
+			return null;
+		}
+
 		const result = this.chess.undo();
 		if (result && this.mode === 'engine') {
 			this.chess.undo();
@@ -257,10 +384,19 @@ export class GameStore {
 			const newChess = new Chess(fen);
 			this.chess = newChess;
 			this.showNotification('Position geladen!', 'success');
-			
+
+			if (this.mode === 'analysis') {
+				this.analysisNodes = [
+					{ id: 'root', san: '', fen, parentId: null }
+				];
+				this.currentNodeId = 'root';
+			}
+
 			if (this.mode === 'engine' && this.turn !== this.playerColor) {
 				setTimeout(() => this.triggerEngineMove(), 500);
 			}
+
+			if (this.isAnalyzing) this.triggerAnalysis();
 		} catch (e) {
 			console.error('Failed to load FEN:', e);
 			this.showNotification('Fehler beim Laden der Position.', 'error');

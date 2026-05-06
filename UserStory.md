@@ -14,11 +14,13 @@
 14. Ich möchte einen Button haben, wo ich die Position speichern kann, damit ich sie später noch einmal öffnen kann.
 15. Ich möchte mir die gespeicherten Positionen ansehen können. Wie es eine Game-History gibt, sollte es auch eine Position-History geben, wo ich mir die gespeicherten Positionen ansehen kann.
 
+16. Als Benuter möchte ich, die Möglichkeit haben, durch die Züge derPartien durchzuklicken, die ich mir angesehen habe, damit ich die Züge nachvollziehen kann.
+
 
 ## not solved:
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 
-16. Als Benuter möchte ich, die Möglichkeit haben, durch die Partien durchzuklicken, die ich mir angesehen habe, damit ich die Züge nachvollziehen kann.
+
 
 17. Als Benutzer möchte ich in der Navbar einen Reiter Analyse haben, wo ich beispielsweise wie in Lichess eine Evaluation bar sehe, die mir die Vorteile der einen oder anderen Seite anzeigt.
     17.1 Sollte es die Möglichkeit geben, Untervarianten zu erzeugen, das dann wie ein "Variantenbaum" aussieht.
