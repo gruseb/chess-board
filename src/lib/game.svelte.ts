@@ -9,6 +9,29 @@ export type SaveNotification = {
 	type: 'success' | 'error';
 } | null;
 
+export type TacticsStatus = 'idle' | 'loading' | 'playing' | 'correct' | 'wrong' | 'completed' | 'error' | 'empty';
+
+export interface TacticsPuzzle {
+	puzzleid: string;
+	fen: string;
+	moves: string;
+	rating: number;
+	themes: string;
+}
+
+interface RawTacticsPuzzle {
+	puzzleid?: string;
+	fen?: string;
+	moves?: string;
+	rating?: number;
+	themes?: string;
+	PuzzleId?: string;
+	FEN?: string;
+	Moves?: string;
+	Rating?: number;
+	Themes?: string;
+}
+
 // Flat node structure – no nested reactive objects, no proxy issues
 export interface AnalysisNode {
 	id: string;
@@ -25,6 +48,26 @@ const ANALYSIS_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function makeId(): string {
 	return Math.random().toString(36).slice(2, 9);
+}
+
+function normalizeTacticsPuzzle(raw: RawTacticsPuzzle): TacticsPuzzle | null {
+	const puzzleid = raw.puzzleid ?? raw.PuzzleId;
+	const fen = raw.fen ?? raw.FEN;
+	const moves = raw.moves ?? raw.Moves;
+	const rating = raw.rating ?? raw.Rating;
+	const themes = raw.themes ?? raw.Themes;
+
+	if (!puzzleid || !fen || !moves || typeof rating !== 'number' || !themes) {
+		return null;
+	}
+
+	return {
+		puzzleid,
+		fen,
+		moves,
+		rating,
+		themes
+	};
 }
 
 export class GameStore {
@@ -46,10 +89,15 @@ export class GameStore {
 	activePgn = $state<string | null>(null); // Stores the PGN for navigation when in local/engine modes
 
 	// Tactics state
-	tacticsPuzzle = $state<any>(null);
+	tacticsPuzzle = $state<TacticsPuzzle | null>(null);
 	tacticsCorrectMoves = $state<string[]>([]);
 	tacticsIndex = $state(0);
-	tacticsStatus = $state<'idle' | 'playing' | 'correct' | 'wrong' | 'completed'>('idle');
+	tacticsStatus = $state<TacticsStatus>('idle');
+	tacticsError = $state<string | null>(null);
+
+	private tacticsRequestId = 0;
+	private tacticsReplyTimer: ReturnType<typeof setTimeout> | null = null;
+	private tacticsUndoTimer: ReturnType<typeof setTimeout> | null = null;
 
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
@@ -170,6 +218,34 @@ export class GameStore {
 	private showNotification(message: string, type: 'success' | 'error') {
 		this.notification = { message, type };
 		setTimeout(() => { this.notification = null; }, 3000);
+	}
+
+	private clearTacticsTimers() {
+		if (this.tacticsReplyTimer) {
+			clearTimeout(this.tacticsReplyTimer);
+			this.tacticsReplyTimer = null;
+		}
+
+		if (this.tacticsUndoTimer) {
+			clearTimeout(this.tacticsUndoTimer);
+			this.tacticsUndoTimer = null;
+		}
+	}
+
+	private resetTacticsState(status: TacticsStatus = 'idle') {
+		this.clearTacticsTimers();
+		this.tacticsPuzzle = null;
+		this.tacticsCorrectMoves = [];
+		this.tacticsIndex = 0;
+		this.tacticsStatus = status;
+		this.tacticsError = null;
+		this.viewIndex = -1;
+		this.viewPgn = null;
+		this.activePgn = null;
+	}
+
+	private syncChessFromFen() {
+		this.chess = new Chess(this.chess.fen());
 	}
 
 	/** US13: Partie bis zum aktuellen Zeitpunkt speichern */
@@ -329,7 +405,11 @@ export class GameStore {
 			if (this.mode === 'view') {
 				return null;
 			}
-			
+
+			if (this.mode === 'tactics' && this.tacticsStatus !== 'playing') {
+				return null;
+			}
+
 			// If we are viewing an old position, reset to latest before moving
 			if (this.viewIndex !== -1) {
 				this.viewIndex = -1;
@@ -387,6 +467,9 @@ export class GameStore {
 
 	setMode(newMode: GameMode) {
 		if (this.mode === newMode) return;
+		if (this.mode === 'tactics' && newMode !== 'tactics') {
+			this.resetTacticsState();
+		}
 		this.mode = newMode;
 		if (newMode === 'analysis') {
 			this.resetAnalysis();
@@ -399,6 +482,9 @@ export class GameStore {
 		if (this.mode === 'analysis') {
 			this.resetAnalysis();
 			return;
+		}
+		if (this.mode === 'tactics') {
+			this.resetTacticsState();
 		}
 		this.chess = new Chess();
 		this.toggleAnalysis(false);
@@ -525,14 +611,14 @@ export class GameStore {
 				// Reconstruct flat analysis tree from PGN
 				const setupFen = newChess.header().FEN;
 				const startFen = setupFen || STARTING_FEN;
-				
+
 				const temp = new Chess();
 				if (setupFen) {
 					temp.load(setupFen);
 				}
-				
+
 				const history = newChess.history({ verbose: true });
-				
+
 				this.analysisNodes = [
 					{ id: 'root', san: '', fen: startFen, parentId: null }
 				];
@@ -550,7 +636,7 @@ export class GameStore {
 					this.analysisNodes = [...this.analysisNodes, newNode];
 					this.currentNodeId = newNode.id;
 				}
-				
+
 				this.isAnalyzing = startAnalysis;
 				if (startAnalysis) this.triggerAnalysis();
 			} else {
@@ -585,7 +671,7 @@ export class GameStore {
 			if (this.mode === 'engine' && this.turn !== this.playerColor) {
 				setTimeout(() => this.triggerEngineMove(), 500);
 			}
-			
+
 			this.showNotification('Position geladen!', 'success');
 		} catch (e) {
 			console.error('Failed to load FEN:', e);
@@ -594,68 +680,113 @@ export class GameStore {
 	}
 
 	async loadTactics(rating: number) {
-		this.tacticsStatus = 'idle';
+		const requestId = ++this.tacticsRequestId;
+		this.resetTacticsState('loading');
 		this.mode = 'tactics';
+		this.playerColor = 'w';
 		this.showNotification(`Lade Taktikaufgabe (${rating})...`, 'success');
 
 		try {
-			// Using the public community API
-			const response = await fetch(`https://chess-puzzles-api.vercel.app/puzzles?min_rating=${rating}&max_rating=${rating + 100}&limit=1`);
+			const response = await fetch(`${base}/api/tactics?rating=${rating}`);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
 			const data = await response.json();
 
+			if (requestId !== this.tacticsRequestId) {
+				return;
+			}
+
 			if (data && data.length > 0) {
-				const puzzle = data[0];
+				const puzzle = normalizeTacticsPuzzle(data[0] as RawTacticsPuzzle);
+
+				if (!puzzle) {
+					throw new Error('Invalid puzzle payload');
+				}
+
+				const moves = typeof puzzle.moves === 'string' ? puzzle.moves.split(' ').filter(Boolean) : [];
+
+				if (moves.length === 0) {
+					throw new Error('Invalid puzzle payload');
+				}
+
 				this.tacticsPuzzle = puzzle;
-				this.tacticsCorrectMoves = puzzle.moves.split(' ');
+				this.tacticsCorrectMoves = moves;
 				this.tacticsIndex = 0;
-				
+
 				// Initialize the board with the puzzle FEN
 				this.chess = new Chess(puzzle.fen);
-				this.viewIndex = -1;
-				this.viewPgn = null;
-				this.playerColor = this.turn; // Set player to the color whose turn it is after the first puzzle move
 
-				// The first move in the Lichess puzzle is the one that sets up the situation
+				// The first move in the puzzle creates the tactical position the user should solve.
 				const firstMove = this.tacticsCorrectMoves[0];
-				this.chess.move({ 
-					from: firstMove.substring(0, 2), 
-					to: firstMove.substring(2, 4), 
-					promotion: firstMove.length === 5 ? firstMove[4] : 'q' 
+				const setupMove = this.chess.move({
+					from: firstMove.substring(0, 2),
+					to: firstMove.substring(2, 4),
+					promotion: firstMove.length === 5 ? firstMove[4] : 'q'
 				});
+
+				if (!setupMove) {
+					throw new Error('Invalid setup move');
+				}
+
+				this.syncChessFromFen();
+
 				this.tacticsIndex = 1;
 				this.tacticsStatus = 'playing';
-				this.playerColor = this.turn; // Now it's the player's turn
-				
+				this.playerColor = this.turn;
+
 				this.showNotification('Taktikaufgabe bereit!', 'success');
 			} else {
+				this.tacticsStatus = 'empty';
+				this.tacticsError = 'Keine passende Aufgabe fuer diese Elo-Stufe gefunden.';
 				this.showNotification('Keine passende Aufgabe gefunden.', 'error');
 			}
 		} catch (e) {
+			if (requestId !== this.tacticsRequestId) {
+				return;
+			}
 			console.error('Failed to load tactics:', e);
+			this.tacticsStatus = 'error';
+			this.tacticsError = 'Die Taktikaufgabe konnte nicht geladen werden. Bitte versuche es gleich noch einmal.';
 			this.showNotification('Fehler beim Laden der Taktikaufgabe.', 'error');
 		}
 	}
 
 	private validateTacticsMove(from: string, to: string, promotion: string) {
+		if (this.mode !== 'tactics' || this.tacticsStatus !== 'playing') {
+			return;
+		}
+
 		const expectedMove = this.tacticsCorrectMoves[this.tacticsIndex];
+		if (!expectedMove) {
+			this.tacticsStatus = 'completed';
+			return;
+		}
+
 		const playedMove = from + to + (promotion !== 'q' ? promotion : '');
-		// Handle promotion equality check more robustly if needed
 		const playedMoveShort = from + to;
-		const isCorrect = expectedMove.startsWith(playedMoveShort);
+		const isCorrect = expectedMove === playedMove || (expectedMove.length === 5 && expectedMove.startsWith(playedMoveShort));
 
 		if (isCorrect) {
 			this.tacticsIndex++;
 			this.tacticsStatus = 'correct';
-			
+
 			// If there's an opponent move follow-up, play it
 			if (this.tacticsIndex < this.tacticsCorrectMoves.length) {
 				const opponentMove = this.tacticsCorrectMoves[this.tacticsIndex];
-				setTimeout(() => {
+				const requestId = this.tacticsRequestId;
+				this.tacticsReplyTimer = setTimeout(() => {
+					if (requestId !== this.tacticsRequestId || this.mode !== 'tactics' || this.tacticsPuzzle === null) {
+						return;
+					}
+
 					this.chess.move({
 						from: opponentMove.substring(0, 2),
 						to: opponentMove.substring(2, 4),
 						promotion: opponentMove.length === 5 ? opponentMove[4] : 'q'
 					});
+					this.syncChessFromFen();
+					this.tacticsReplyTimer = null;
 					this.tacticsIndex++;
 					this.tacticsStatus = 'playing';
 				}, 500);
@@ -667,8 +798,15 @@ export class GameStore {
 			this.tacticsStatus = 'wrong';
 			this.showNotification('Falscher Zug. Versuche es noch einmal!', 'error');
 			// Undo the move
-			setTimeout(() => {
+			const requestId = this.tacticsRequestId;
+			this.tacticsUndoTimer = setTimeout(() => {
+				if (requestId !== this.tacticsRequestId || this.mode !== 'tactics') {
+					return;
+				}
+
 				this.chess.undo();
+				this.syncChessFromFen();
+				this.tacticsUndoTimer = null;
 				this.tacticsStatus = 'playing';
 			}, 1000);
 		}

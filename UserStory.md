@@ -33,3 +33,4 @@
 
 19. Als Nutzer möchte ich auf jedem Schachbrett, sollte die Möglichkeit bestehen sich durch die Partie kurz durchzuklicken;
 20. Zuganzahl wird falsch angezeigt.
+21. Als Nutzer möchte ich Taktikaufgaben angezeigt bekommen, bei dem ich nach Elo die Schwierigkeit auswählen können. Diese Aufgaben sollten nicht mein Lichess Taktikrating ändern
