@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Chess } from 'chess.js';
 	import { game } from '$lib/game.svelte';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import MoveTree from '$lib/components/MoveTree.svelte';
 
 	// Group history into pairs of [whiteMove, blackMove]
@@ -64,20 +66,33 @@
 			<h3 class="font-headline text-lg font-semibold text-primary">Sacrificial Rites</h3>
 			<div class="flex bg-surface-container-lowest p-1 rounded-xl gap-1">
 				<button 
-					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'local' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
-					onclick={() => game.setMode('local')}
+					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'local' && page.url.pathname === '/' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'} {game.mode === 'analysis' ? 'opacity-30 cursor-not-allowed' : ''}"
+					onclick={() => {
+						if (game.mode === 'analysis') return;
+						game.setMode('local');
+						if (page.url.pathname !== '/') goto('/');
+					}}
+					disabled={game.mode === 'analysis'}
 				>
 					Local PvP
 				</button>
 				<button 
-					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'engine' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
-					onclick={() => game.setMode('engine')}
+					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'engine' && page.url.pathname === '/' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'} {game.mode === 'analysis' ? 'opacity-30 cursor-not-allowed' : ''}"
+					onclick={() => {
+						if (game.mode === 'analysis') return;
+						game.setMode('engine');
+						if (page.url.pathname !== '/') goto('/');
+					}}
+					disabled={game.mode === 'analysis'}
 				>
 					vs Engine
 				</button>
 				<button 
 					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'analysis' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
-					onclick={() => game.setMode('analysis')}
+					onclick={() => {
+						game.setMode('analysis');
+						if (page.url.pathname !== '/analysis') goto('/analysis');
+					}}
 				>
 					Analyse
 				</button>

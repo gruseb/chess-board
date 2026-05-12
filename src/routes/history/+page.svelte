@@ -20,9 +20,17 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-outline-variant/5">
-                {#each data.games as match (match.id)}
-                    <tr class="hover:bg-white/5 transition-colors">
-                        <td class="p-4 text-on-surface">{new Date(match.created_at).toLocaleString()}</td>
+                {#each data.games as match (match.id)}                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class="p-4 text-on-surface text-sm">
+                            <div class="flex items-center gap-2">
+                                {#if match.source === 'lichess'}
+                                    <span class="w-2 h-2 rounded-full bg-[#f0d9b5]" title="Lichess.org"></span>
+                                {:else}
+                                    <span class="w-2 h-2 rounded-full bg-primary" title="Lokal"></span>
+                                {/if}
+                                {new Date(match.created_at).toLocaleString()}
+                            </div>
+                        </td>
                         <td class="p-4 text-on-surface">{match.white_player}</td>
                         <td class="p-4 text-on-surface">{match.black_player} {match.difficulty ? `(Lvl ${match.difficulty})` : ''}</td>
                         <td class="p-4">
@@ -36,11 +44,24 @@
                         </td>
                         <td class="p-4">
                             <div class="flex items-center gap-3">
-                                <a href="{base}/history/{match.id}" 
-                                   class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group"
-                                   title="Ansehen">
-                                    <span class="material-symbols-outlined text-xl">visibility</span>
-                                </a>
+                                {#if match.source !== 'lichess'}
+                                    <a href="{base}/history/{match.id}" 
+                                       class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group"
+                                       title="Ansehen">
+                                        <span class="material-symbols-outlined text-xl">visibility</span>
+                                    </a>
+                                {:else}
+                                    <button 
+                                        onclick={() => {
+                                            game.loadPgn(match.pgn, 'view');
+                                            goto(`${base}/`);
+                                        }}
+                                        class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all"
+                                        title="Auf dem Brett ansehen"
+                                    >
+                                        <span class="material-symbols-outlined text-xl">visibility</span>
+                                    </button>
+                                {/if}
 
                                 <button 
                                     onclick={() => {
@@ -69,28 +90,29 @@
                                         game.loadPgn(match.pgn, 'analysis', true);
                                         goto(`${base}/analysis`);
                                     }}
-                                    disabled={!game.canAnalyze(match.created_at)}
+                                    disabled={match.source !== 'lichess' && !game.canAnalyze(match.created_at)}
                                     class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-                                    title={game.canAnalyze(match.created_at) ? 'Stockfish analysieren' : 'Analyse erst nach 24h verfügbar'}
+                                    title={match.source === 'lichess' || game.canAnalyze(match.created_at) ? 'Stockfish analysieren' : 'Analyse erst nach 24h verfügbar'}
                                 >
                                     <span class="material-symbols-outlined text-xl">precision_manufacturing</span>
                                 </button>
 
-                                <button 
-                                    onclick={async () => {
-                                        if (confirm('Möchtest du diese Partie wirklich löschen?')) {
-                                            const success = await game.deleteGame(match.id);
-                                            if (success) {
-                                                // Refresh page data
-                                                window.location.reload();
+                                {#if match.source !== 'lichess'}
+                                    <button 
+                                        onclick={async () => {
+                                            if (confirm('Möchtest du diese Partie wirklich löschen?')) {
+                                                const success = await game.deleteGame(match.id);
+                                                if (success) {
+                                                    window.location.reload();
+                                                }
                                             }
-                                        }
-                                    }}
-                                    class="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
-                                    title="Löschen"
-                                >
-                                    <span class="material-symbols-outlined text-xl">delete</span>
-                                </button>
+                                        }}
+                                        class="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
+                                        title="Löschen"
+                                    >
+                                        <span class="material-symbols-outlined text-xl">delete</span>
+                                    </button>
+                                {/if}
                             </div>
                         </td>
                     </tr>
