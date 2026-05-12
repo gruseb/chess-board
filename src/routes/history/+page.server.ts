@@ -3,18 +3,9 @@ import { LICHESS_API_KEY } from '$env/static/private';
 import { PUBLIC_LICHESS_USERNAME } from '$env/static/public';
 
 export async function load() {
-    // Fetch local games from Supabase
-    const { data: localGames, error } = await supabase
-        .from('partie')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let syncResult = { success: false, count: 0, error: null };
 
-    if (error) {
-        console.error("Error loading local history:", error);
-    }
-
-    // Fetch Lichess games
-    let lichessGames = [];
+    // 1. Fetch latest Lichess games
     try {
         const response = await fetch(`https://lichess.org/api/games/user/${PUBLIC_LICHESS_USERNAME}?max=10&perfType=rapid&pgnInJson=true`, {
             headers: {
@@ -25,33 +16,60 @@ export async function load() {
 
         if (response.ok) {
             const text = await response.text();
-            lichessGames = text.split('\n')
+            const lichessGames = text.split('\n')
                 .filter(line => line.trim())
                 .map(line => {
-                    const g = JSON.parse(line);
-                    return {
-                        id: `lichess-${g.id}`,
-                        created_at: new Date(g.createdAt).toISOString(),
-                        white_player: g.players.white.user?.name || 'AI',
-                        black_player: g.players.black.user?.name || 'AI',
-                        result: g.winner === 'white' ? 'white_won' : (g.winner === 'black' ? 'black_won' : 'draw'),
-                        pgn: g.pgn,
-                        source: 'lichess'
-                    };
-                });
+                    try {
+                        const g = JSON.parse(line);
+                        return {
+                            external_id: g.id,
+                            created_at: new Date(g.createdAt).toISOString(),
+                            white_player: g.players.white.user?.name || 'AI',
+                            black_player: g.players.black.user?.name || 'AI',
+                            result: g.winner === 'white' ? 'white_won' : (g.winner === 'black' ? 'black_won' : 'draw'),
+                            pgn: g.pgn,
+                            source: 'lichess'
+                        };
+                    } catch (e) {
+                        return null;
+                    }
+                })
+                .filter(g => g !== null);
+
+            // 2. Upsert into Supabase
+            if (lichessGames.length > 0) {
+                const { error: upsertError } = await supabase
+                    .from('partie')
+                    .upsert(lichessGames, { onConflict: 'external_id' });
+                
+                if (upsertError) {
+                    syncResult.error = upsertError.message;
+                    console.error("Supabase Upsert Error:", upsertError);
+                } else {
+                    syncResult.success = true;
+                    syncResult.count = lichessGames.length;
+                }
+            } else {
+                syncResult.error = "No games found in Lichess response";
+            }
         } else {
-            console.error("Lichess API error:", response.status, await response.text());
+            const errorBody = await response.text();
+            syncResult.error = `Lichess API returned ${response.status}: ${errorBody}`;
+            console.error("Lichess API Error:", response.status, errorBody);
         }
     } catch (e) {
-        console.error("Failed to fetch Lichess games:", e);
+        syncResult.error = e.message;
+        console.error("Sync Exception:", e);
     }
 
-    // Combine and sort
-    const allGames = [...(localGames || []), ...lichessGames].sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    // 3. Fetch all games
+    const { data: allGames, error } = await supabase
+        .from('partie')
+        .select('*')
+        .order('created_at', { ascending: false });
 
     return {
-        games: allGames
+        games: allGames ?? [],
+        syncResult
     };
 }

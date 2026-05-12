@@ -8,6 +8,17 @@
 <div class="max-w-4xl mx-auto p-8">
     <h1 class="text-3xl font-headline font-bold text-primary mb-8">Partien-Historie</h1>
     
+    {#if data.syncResult.error}
+        <div class="mb-6 p-4 bg-error/10 border border-error/20 rounded-xl text-error flex items-center gap-3">
+            <span class="material-symbols-outlined">warning</span>
+            <p class="text-sm">Fehler beim Lichess-Sync: {data.syncResult.error}</p>
+        </div>
+    {:else if data.syncResult.success}
+        <div class="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-xl text-primary flex items-center gap-3">
+            <span class="material-symbols-outlined">sync</span>
+            <p class="text-sm">{data.syncResult.count} Partien von Lichess synchronisiert.</p>
+        </div>
+    {/if}
     <div class="bg-surface-container-low rounded-2xl border border-outline-variant/10 overflow-hidden shadow-xl">
         <table class="w-full text-left">
             <thead class="bg-surface-container border-b border-outline-variant/10">
@@ -44,24 +55,11 @@
                         </td>
                         <td class="p-4">
                             <div class="flex items-center gap-3">
-                                {#if match.source !== 'lichess'}
-                                    <a href="{base}/history/{match.id}" 
-                                       class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group"
-                                       title="Ansehen">
-                                        <span class="material-symbols-outlined text-xl">visibility</span>
-                                    </a>
-                                {:else}
-                                    <button 
-                                        onclick={() => {
-                                            game.loadPgn(match.pgn, 'view');
-                                            goto(`${base}/`);
-                                        }}
-                                        class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all"
-                                        title="Auf dem Brett ansehen"
-                                    >
-                                        <span class="material-symbols-outlined text-xl">visibility</span>
-                                    </button>
-                                {/if}
+                                <a href="{base}/history/{match.id}" 
+                                   class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group"
+                                   title="Ansehen">
+                                    <span class="material-symbols-outlined text-xl">visibility</span>
+                                </a>
 
                                 <button 
                                     onclick={() => {
@@ -97,22 +95,20 @@
                                     <span class="material-symbols-outlined text-xl">precision_manufacturing</span>
                                 </button>
 
-                                {#if match.source !== 'lichess'}
-                                    <button 
-                                        onclick={async () => {
-                                            if (confirm('Möchtest du diese Partie wirklich löschen?')) {
-                                                const success = await game.deleteGame(match.id);
-                                                if (success) {
-                                                    window.location.reload();
-                                                }
+                                <button 
+                                    onclick={async () => {
+                                        if (confirm('Möchtest du diese Partie wirklich löschen?')) {
+                                            const success = await game.deleteGame(match.id);
+                                            if (success) {
+                                                window.location.reload();
                                             }
-                                        }}
-                                        class="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
-                                        title="Löschen"
-                                    >
-                                        <span class="material-symbols-outlined text-xl">delete</span>
-                                    </button>
-                                {/if}
+                                        }
+                                    }}
+                                    class="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
+                                    title="Löschen"
+                                >
+                                    <span class="material-symbols-outlined text-xl">delete</span>
+                                </button>
                             </div>
                         </td>
                     </tr>
