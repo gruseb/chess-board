@@ -22,6 +22,10 @@
 		void game.loadTactics(selectedRating);
 	}
 
+	const isContinueDisabled = $derived(
+		!game.tacticsPuzzle || game.tacticsStatus === 'loading' || game.tacticsSolved
+	);
+
 	function getTacticsFeedback(status: typeof game.tacticsStatus) {
 		switch (status) {
 			case 'loading':
@@ -239,6 +243,17 @@
 							</span>
 						</div>
 					{/if}
+
+					<button
+						onclick={nextPuzzle}
+						disabled={isContinueDisabled}
+						class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 font-bold transition-all disabled:cursor-not-allowed disabled:border-outline-variant/10 disabled:bg-surface-container-high disabled:text-on-surface-variant/45 {isContinueDisabled
+							? ''
+							: 'border-primary/30 bg-primary/12 text-primary hover:border-primary hover:bg-primary/18'}"
+					>
+						<span class="material-symbols-outlined">arrow_forward</span>
+						Weiter
+					</button>
 				</div>
 			</div>
 		{:else}

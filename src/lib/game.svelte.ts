@@ -94,6 +94,7 @@ export class GameStore {
 	tacticsIndex = $state(0);
 	tacticsStatus = $state<TacticsStatus>('idle');
 	tacticsError = $state<string | null>(null);
+	tacticsSolved = $state(false);
 
 	private tacticsRequestId = 0;
 	private tacticsReplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -239,6 +240,7 @@ export class GameStore {
 		this.tacticsIndex = 0;
 		this.tacticsStatus = status;
 		this.tacticsError = null;
+		this.tacticsSolved = false;
 		this.viewIndex = -1;
 		this.viewPgn = null;
 		this.activePgn = null;
@@ -680,6 +682,7 @@ export class GameStore {
 	}
 
 	async loadTactics(rating: number) {
+		const previousPuzzleId = this.tacticsPuzzle?.puzzleid ?? null;
 		const requestId = ++this.tacticsRequestId;
 		this.resetTacticsState('loading');
 		this.mode = 'tactics';
@@ -687,7 +690,12 @@ export class GameStore {
 		this.showNotification(`Lade Taktikaufgabe (${rating})...`, 'success');
 
 		try {
-			const response = await fetch(`${base}/api/tactics?rating=${rating}`);
+			const params = new URLSearchParams({ rating: `${rating}` });
+			if (previousPuzzleId) {
+				params.set('exclude', previousPuzzleId);
+			}
+
+			const response = await fetch(`${base}/api/tactics?${params.toString()}`);
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}
@@ -760,6 +768,7 @@ export class GameStore {
 		const expectedMove = this.tacticsCorrectMoves[this.tacticsIndex];
 		if (!expectedMove) {
 			this.tacticsStatus = 'completed';
+			this.tacticsSolved = true;
 			return;
 		}
 
@@ -792,6 +801,7 @@ export class GameStore {
 				}, 500);
 			} else {
 				this.tacticsStatus = 'completed';
+				this.tacticsSolved = true;
 				this.showNotification('Hervorragend! Aufgabe gelöst.', 'success');
 			}
 		} else {
