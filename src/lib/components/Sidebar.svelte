@@ -70,7 +70,7 @@
 					onclick={() => {
 						if (game.mode === 'analysis') return;
 						game.setMode('local');
-						if (page.url.pathname !== '/') goto('/');
+						if ((page.url.pathname as string) !== '/') goto('/');
 					}}
 					disabled={game.mode === 'analysis'}
 				>
@@ -81,7 +81,7 @@
 					onclick={() => {
 						if (game.mode === 'analysis') return;
 						game.setMode('engine');
-						if (page.url.pathname !== '/') goto('/');
+						if ((page.url.pathname as string) !== '/') goto('/');
 					}}
 					disabled={game.mode === 'analysis'}
 				>
@@ -91,7 +91,7 @@
 					class="flex-1 py-2 px-4 rounded-lg font-medium text-sm transition-colors {game.mode === 'analysis' ? 'bg-surface-container-highest text-on-surface shadow-sm' : 'text-on-surface-variant hover:bg-white/5'}"
 					onclick={() => {
 						game.setMode('analysis');
-						if (page.url.pathname !== '/analysis') goto('/analysis');
+						if ((page.url.pathname as string) !== '/analysis') goto('/analysis');
 					}}
 				>
 					Analyse
@@ -121,6 +121,8 @@
 				<button 
 					class="w-12 h-6 rounded-full transition-colors relative {game.isAnalyzing ? 'bg-primary' : 'bg-surface-container-highest'}"
 					onclick={() => game.toggleAnalysis()}
+					aria-label="Stockfish Analyse umschalten"
+					title="Stockfish Analyse umschalten"
 				>
 					<div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform {game.isAnalyzing ? 'translate-x-6' : ''}"></div>
 				</button>
@@ -160,7 +162,7 @@
 									<td 
 										class="py-2 px-2 font-medium rounded cursor-pointer transition-all
 											{game.mode === 'view' && game.history.length - 1 === pair.black.index ? 'bg-primary/20 text-primary shadow-[inset_0_0_10px_rgba(255,145,84,0.1)]' : 'text-on-surface-variant/80 hover:bg-white/5'}"
-										onclick={() => handleMoveClick(pair.black.index)}
+										onclick={() => handleMoveClick(pair.black!.index)}
 									>
 										{pair.black.san}
 									</td>

@@ -58,6 +58,7 @@
 	.piece-black {
 		background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #475569 100%);
 		-webkit-background-clip: text;
+		background-clip: text;
 		-webkit-text-fill-color: transparent;
 		filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
 	}

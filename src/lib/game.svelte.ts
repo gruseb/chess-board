@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import { supabase } from '$lib/supabaseClient';
 import { base } from '$app/paths';
 
-export type GameMode = 'local' | 'engine' | 'analysis' | 'view';
+export type GameMode = 'local' | 'engine' | 'analysis' | 'view' | 'tactics';
 
 export type SaveNotification = {
 	message: string;
@@ -44,6 +44,12 @@ export class GameStore {
 	viewPgn = $state<string | null>(null);
 	viewIndex = $state<number>(-1); // -1 means current/latest position
 	activePgn = $state<string | null>(null); // Stores the PGN for navigation when in local/engine modes
+
+	// Tactics state
+	tacticsPuzzle = $state<any>(null);
+	tacticsCorrectMoves = $state<string[]>([]);
+	tacticsIndex = $state(0);
+	tacticsStatus = $state<'idle' | 'playing' | 'correct' | 'wrong' | 'completed'>('idle');
 
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
@@ -365,10 +371,12 @@ export class GameStore {
 			newChess.loadPgn(this.chess.pgn());
 			this.chess = newChess;
 
-			if (this.isGameOver && this.mode !== 'analysis') {
+			if (this.isGameOver && this.mode !== 'analysis' && this.mode !== 'tactics') {
 				this.saveGame();
 			} else if (this.mode === 'engine' && this.turn !== this.playerColor) {
 				setTimeout(() => this.triggerEngineMove(), 250);
+			} else if (this.mode === 'tactics') {
+				this.validateTacticsMove(from, to, promotion);
 			}
 
 			return moveResult;
@@ -582,6 +590,87 @@ export class GameStore {
 		} catch (e) {
 			console.error('Failed to load FEN:', e);
 			this.showNotification('Fehler beim Laden der Position.', 'error');
+		}
+	}
+
+	async loadTactics(rating: number) {
+		this.tacticsStatus = 'idle';
+		this.mode = 'tactics';
+		this.showNotification(`Lade Taktikaufgabe (${rating})...`, 'success');
+
+		try {
+			// Using the public community API
+			const response = await fetch(`https://chess-puzzles-api.vercel.app/puzzles?min_rating=${rating}&max_rating=${rating + 100}&limit=1`);
+			const data = await response.json();
+
+			if (data && data.length > 0) {
+				const puzzle = data[0];
+				this.tacticsPuzzle = puzzle;
+				this.tacticsCorrectMoves = puzzle.moves.split(' ');
+				this.tacticsIndex = 0;
+				
+				// Initialize the board with the puzzle FEN
+				this.chess = new Chess(puzzle.fen);
+				this.viewIndex = -1;
+				this.viewPgn = null;
+				this.playerColor = this.turn; // Set player to the color whose turn it is after the first puzzle move
+
+				// The first move in the Lichess puzzle is the one that sets up the situation
+				const firstMove = this.tacticsCorrectMoves[0];
+				this.chess.move({ 
+					from: firstMove.substring(0, 2), 
+					to: firstMove.substring(2, 4), 
+					promotion: firstMove.length === 5 ? firstMove[4] : 'q' 
+				});
+				this.tacticsIndex = 1;
+				this.tacticsStatus = 'playing';
+				this.playerColor = this.turn; // Now it's the player's turn
+				
+				this.showNotification('Taktikaufgabe bereit!', 'success');
+			} else {
+				this.showNotification('Keine passende Aufgabe gefunden.', 'error');
+			}
+		} catch (e) {
+			console.error('Failed to load tactics:', e);
+			this.showNotification('Fehler beim Laden der Taktikaufgabe.', 'error');
+		}
+	}
+
+	private validateTacticsMove(from: string, to: string, promotion: string) {
+		const expectedMove = this.tacticsCorrectMoves[this.tacticsIndex];
+		const playedMove = from + to + (promotion !== 'q' ? promotion : '');
+		// Handle promotion equality check more robustly if needed
+		const playedMoveShort = from + to;
+		const isCorrect = expectedMove.startsWith(playedMoveShort);
+
+		if (isCorrect) {
+			this.tacticsIndex++;
+			this.tacticsStatus = 'correct';
+			
+			// If there's an opponent move follow-up, play it
+			if (this.tacticsIndex < this.tacticsCorrectMoves.length) {
+				const opponentMove = this.tacticsCorrectMoves[this.tacticsIndex];
+				setTimeout(() => {
+					this.chess.move({
+						from: opponentMove.substring(0, 2),
+						to: opponentMove.substring(2, 4),
+						promotion: opponentMove.length === 5 ? opponentMove[4] : 'q'
+					});
+					this.tacticsIndex++;
+					this.tacticsStatus = 'playing';
+				}, 500);
+			} else {
+				this.tacticsStatus = 'completed';
+				this.showNotification('Hervorragend! Aufgabe gelöst.', 'success');
+			}
+		} else {
+			this.tacticsStatus = 'wrong';
+			this.showNotification('Falscher Zug. Versuche es noch einmal!', 'error');
+			// Undo the move
+			setTimeout(() => {
+				this.chess.undo();
+				this.tacticsStatus = 'playing';
+			}, 1000);
 		}
 	}
 }

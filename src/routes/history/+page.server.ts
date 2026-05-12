@@ -3,7 +3,7 @@ import { LICHESS_API_KEY } from '$env/static/private';
 import { PUBLIC_LICHESS_USERNAME } from '$env/static/public';
 
 export async function load() {
-    let syncResult = { success: false, count: 0, error: null };
+    let syncResult: { success: boolean, count: number, error: string | null } = { success: false, count: 0, error: null };
 
     // 1. Fetch latest Lichess games
     try {
@@ -58,7 +58,7 @@ export async function load() {
             console.error("Lichess API Error:", response.status, errorBody);
         }
     } catch (e) {
-        syncResult.error = e.message;
+        syncResult.error = e instanceof Error ? e.message : "Unknown error occurred";
         console.error("Sync Exception:", e);
     }
 
