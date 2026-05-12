@@ -42,6 +42,8 @@ export class GameStore {
 	]);
 	currentNodeId = $state<string>('root');
 	viewPgn = $state<string | null>(null);
+	viewIndex = $state<number>(-1); // -1 means current/latest position
+	activePgn = $state<string | null>(null); // Stores the PGN for navigation when in local/engine modes
 
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
@@ -292,6 +294,18 @@ export class GameStore {
 	get isCheck() { return this.chess.isCheck(); }
 	get history() { return this.chess.history({ verbose: true }); }
 	get fen() { return this.chess.fen(); }
+	get totalHistoryCount() {
+		const pgn = this.mode === 'view' ? this.viewPgn : (this.activePgn || this.chess.pgn());
+		if (!pgn) return this.history.length;
+		// A bit expensive, but only called when history changes or we navigate
+		const temp = new Chess();
+		try {
+			temp.loadPgn(pgn);
+			return temp.history().length;
+		} catch {
+			return this.history.length;
+		}
+	}
 
 	// Helper: get direct children of a node by id
 	getChildren(parentId: string): AnalysisNode[] {
@@ -309,6 +323,15 @@ export class GameStore {
 			if (this.mode === 'view') {
 				return null;
 			}
+			
+			// If we are viewing an old position, reset to latest before moving
+			if (this.viewIndex !== -1) {
+				this.viewIndex = -1;
+				// The chess state should already be at latest if we didn't change it permanently,
+				// but let's ensure it.
+				this.jumpToHistoryIndex(this.history.length - 1, true);
+			}
+
 			if (this.mode === 'engine' && !isEngineMove && this.turn !== this.playerColor) {
 				return null;
 			}
@@ -420,17 +443,38 @@ export class GameStore {
 		return result;
 	}
 
-	jumpToHistoryIndex(index: number) {
-		if (this.mode !== 'view' || !this.viewPgn) return;
+	jumpToHistoryIndex(index: number, force: boolean = false) {
+		if (!force && this.mode !== 'view' && this.mode !== 'local' && this.mode !== 'engine') return;
+
+		// When starting to navigate in local/engine mode, capture the current PGN
+		if (this.mode !== 'view' && this.viewIndex === -1 && index !== -1) {
+			this.activePgn = this.chess.pgn();
+		}
+
+		let pgnToUse = this.mode === 'view' ? this.viewPgn : this.activePgn;
+		if (!pgnToUse) {
+			pgnToUse = this.chess.pgn();
+		}
+
+		if (!pgnToUse && index !== -1) return;
 
 		const tempChess = new Chess();
-		tempChess.loadPgn(this.viewPgn);
+		if (pgnToUse) {
+			tempChess.loadPgn(pgnToUse);
+		}
 		const history = tempChess.history({ verbose: true });
 
-		if (index < -1 || index >= history.length) return;
+		// index -1 means go to the end of the history
+		if (index === -1) {
+			this.chess = tempChess;
+			this.viewIndex = -1;
+			this.activePgn = null;
+			return;
+		}
+
+		if (index < 0 || index >= history.length) return;
 
 		const newChess = new Chess();
-		// Load header (FEN setup) if present
 		const setupFen = tempChess.header().FEN;
 		if (setupFen) {
 			newChess.load(setupFen);
@@ -440,6 +484,7 @@ export class GameStore {
 			newChess.move(history[i].san);
 		}
 		this.chess = newChess;
+		this.viewIndex = index;
 	}
 
 	async deleteGame(id: string) {

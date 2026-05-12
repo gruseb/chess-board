@@ -174,38 +174,6 @@
 			{/if}
 		</div>
 
-		{#if game.mode === 'view'}
-			<div class="p-3 bg-surface-container-highest/30 border-t border-outline-variant/10 flex items-center justify-center gap-4">
-				<button 
-					onclick={() => navigate('start')}
-					class="p-2 rounded-lg hover:bg-white/10 text-on-surface-variant transition-colors"
-					title="Zum Anfang"
-				>
-					<span class="material-symbols-outlined">first_page</span>
-				</button>
-				<button 
-					onclick={() => navigate('prev')}
-					class="p-2 rounded-lg hover:bg-white/10 text-on-surface-variant transition-colors"
-					title="Vorheriger Zug"
-				>
-					<span class="material-symbols-outlined">chevron_left</span>
-				</button>
-				<button 
-					onclick={() => navigate('next')}
-					class="p-2 rounded-lg hover:bg-white/10 text-on-surface-variant transition-colors"
-					title="Nächster Zug"
-				>
-					<span class="material-symbols-outlined">chevron_right</span>
-				</button>
-				<button 
-					onclick={() => navigate('end')}
-					class="p-2 rounded-lg hover:bg-white/10 text-on-surface-variant transition-colors"
-					title="Zum Ende"
-				>
-					<span class="material-symbols-outlined">last_page</span>
-				</button>
-			</div>
-		{/if}
 	</div>
 
 	{#if game.mode !== 'view'}

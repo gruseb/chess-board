@@ -1,28 +1,18 @@
 <script lang="ts">
     import { Chess } from 'chess.js';
-    import Piece from '$lib/components/Piece.svelte';
+    import ChessBoard from '$lib/components/ChessBoard.svelte';
     import { base } from '$app/paths';
     import { game } from '$lib/game.svelte';
     import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
 
     let { data } = $props();
     
-    // Pre-calculate all states for smooth navigation
-    const historyStates = $derived.by(() => {
-        const c = new Chess();
-        const states = [c.fen()]; // Start position
+    // Load the game into the store for viewing
+    onMount(() => {
         if (data.game && data.game.pgn) {
-            const temp = new Chess();
-            temp.loadPgn(data.game.pgn);
-            const moveHistory = temp.history();
-            
-            const replayer = new Chess();
-            for (const move of moveHistory) {
-                replayer.move(move);
-                states.push(replayer.fen());
-            }
+            game.loadPgn(data.game.pgn, 'view');
         }
-        return states;
     });
 
     // Extract move list for display
@@ -35,28 +25,9 @@
         return [];
     });
 
-    let currentIndex = $state(0);
-
-    // Initialize to the end of the game
-    $effect(() => {
-        if (historyStates.length > 0) {
-            currentIndex = historyStates.length - 1;
-        }
-    });
-
-    let currentChess = $derived(new Chess(historyStates[currentIndex]));
-    let board = $derived(currentChess.board());
-
-    function goToStart() { currentIndex = 0; }
-    function prevMove() { if (currentIndex > 0) currentIndex--; }
-    function nextMove() { if (currentIndex < historyStates.length - 1) currentIndex++; }
-    function goToEnd() { currentIndex = historyStates.length - 1; }
-
-    function getSquare(rowIndex: number, colIndex: number): string {
-		const file = String.fromCharCode('a'.charCodeAt(0) + colIndex);
-		const rank = 8 - rowIndex;
-		return `${file}${rank}`;
-	}
+    function jumpTo(index: number) {
+        game.jumpToHistoryIndex(index);
+    }
 </script>
 
 <div class="max-w-6xl mx-auto p-4 lg:p-8 flex flex-col lg:flex-row gap-8 items-start">
@@ -67,72 +38,16 @@
         </a>
         
         <!-- Board -->
-        <div class="relative aspect-square w-full bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden p-2 group ring-1 ring-white/10 mb-6">
-            <div class="absolute inset-0 mist-overlay opacity-30"></div>
-            
-            <!-- Coordinate Labels -->
-            <div class="absolute top-1 left-4 right-4 flex justify-between text-[10px] text-outline uppercase font-bold tracking-widest opacity-30 z-10 pointer-events-none">
-                <span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span><span>G</span><span>H</span>
-            </div>
-
-            <div class="w-full h-full rounded-lg overflow-hidden border border-outline-variant/20 grid grid-cols-8 grid-rows-8 relative z-20 pointer-events-none">
-                {#each board as row, rowIndex (rowIndex)}
-                    {#each row as piece, colIndex (getSquare(rowIndex, colIndex))}
-                        {@const square = getSquare(rowIndex, colIndex)}
-                        {@const isDark = (rowIndex + colIndex) % 2 === 1}
-                        
-                        <div class="relative flex items-center justify-center {isDark ? 'bg-[#333333]' : 'bg-[rgba(179,167,188,0.15)]'}">
-                            <Piece {piece} {square} />
-                        </div>
-                    {/each}
-                {/each}
-            </div>
+        <div class="mb-6">
+            <ChessBoard />
         </div>
 
-        <!-- Navigation Controls -->
-        <div class="flex items-center justify-center gap-4 bg-surface-container-low p-4 rounded-2xl border border-outline-variant/10 shadow-lg">
-            <button 
-                onclick={goToStart}
-                disabled={currentIndex === 0}
-                class="p-2 rounded-lg hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-all text-primary"
-                title="Start"
-            >
-                <span class="material-symbols-outlined text-3xl">first_page</span>
-            </button>
-            <button 
-                onclick={prevMove}
-                disabled={currentIndex === 0}
-                class="p-2 rounded-lg hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-all text-primary"
-                title="Vorheriger Zug"
-            >
-                <span class="material-symbols-outlined text-3xl">chevron_left</span>
-            </button>
-            <div class="px-4 py-1 bg-surface-container-lowest rounded-full border border-outline-variant/20 font-mono font-bold text-lg min-w-[80px] text-center">
-                {currentIndex} / {historyStates.length - 1}
-            </div>
-            <button 
-                onclick={nextMove}
-                disabled={currentIndex === historyStates.length - 1}
-                class="p-2 rounded-lg hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-all text-primary"
-                title="Nächster Zug"
-            >
-                <span class="material-symbols-outlined text-3xl">chevron_right</span>
-            </button>
-            <button 
-                onclick={goToEnd}
-                disabled={currentIndex === historyStates.length - 1}
-                class="p-2 rounded-lg hover:bg-surface-container-high disabled:opacity-30 disabled:cursor-not-allowed transition-all text-primary"
-                title="Ende"
-            >
-                <span class="material-symbols-outlined text-3xl">last_page</span>
-            </button>
-        </div>
     </div>
 
     <div class="w-full lg:w-[450px] space-y-6">
         <!-- Game Info -->
         <div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10 shadow-sm">
-            <h2 class="text-xl font-headline font-bold text-primary mb-6">Spieldetails</h2>
+            <h2 class="text-xl font-headline text-on-surface font-bold mb-6">Spieldetails</h2>
             
             <div class="space-y-4">
                 <div class="flex justify-between pb-2 border-b border-outline-variant/10">
@@ -216,35 +131,35 @@
 
         <!-- Move List -->
         <div class="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/10 shadow-sm flex flex-col max-h-[500px]">
-            <h3 class="font-bold text-primary mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined">list</span>
+            <h3 class="font-bold text-on-surface mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">list</span>
                 Zugliste
             </h3>
             <div class="grid grid-cols-2 gap-2 overflow-y-auto custom-scrollbar pr-2">
                 <button 
-                    onclick={() => currentIndex = 0}
-                    class="col-span-2 p-2 rounded-lg text-sm text-center transition-all {currentIndex === 0 ? 'bg-primary text-on-primary font-bold shadow-md' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant'}"
+                    onclick={() => jumpTo(-1)}
+                    class="col-span-2 p-2 rounded-lg text-sm text-center transition-all {game.viewIndex === -1 ? 'bg-primary text-on-primary font-bold shadow-md' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant'}"
                 >
                     Startposition
                 </button>
                 
                 {#each Array.from({ length: Math.ceil(moveList.length / 2) }) as _, i (i)}
-                    {@const whiteIdx = i * 2 + 1}
-                    {@const blackIdx = i * 2 + 2}
+                    {@const whiteIdx = i * 2}
+                    {@const blackIdx = i * 2 + 1}
                     <div class="flex items-center gap-2 col-span-2 mt-1 first:mt-0">
                         <span class="text-[10px] text-outline w-6 text-right font-bold">{i + 1}.</span>
                         <div class="grid grid-cols-2 gap-2 flex-1">
                             <button 
-                                onclick={() => currentIndex = whiteIdx}
-                                class="p-2 rounded-lg text-sm transition-all text-left {currentIndex === whiteIdx ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/30' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface'}"
+                                onclick={() => jumpTo(whiteIdx)}
+                                class="p-2 rounded-lg text-sm transition-all text-left {game.viewIndex === whiteIdx ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/30' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface'}"
                             >
                                 {moveList[i * 2]}
                             </button>
                             
                             {#if moveList[i * 2 + 1]}
                                 <button 
-                                    onclick={() => currentIndex = blackIdx}
-                                    class="p-2 rounded-lg text-sm transition-all text-left {currentIndex === blackIdx ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/30' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface'}"
+                                    onclick={() => jumpTo(blackIdx)}
+                                    class="p-2 rounded-lg text-sm transition-all text-left {game.viewIndex === blackIdx ? 'bg-primary/20 text-primary font-bold ring-1 ring-primary/30' : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface'}"
                                 >
                                     {moveList[i * 2 + 1]}
                                 </button>
