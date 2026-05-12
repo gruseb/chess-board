@@ -22,6 +22,8 @@
         18.1 Bei Positions: Weiterspielen; Stockfish analysieren lassen; 
         18.2 Bei Partie: Stockfish analysieren, selbst analysieren, partie fortsetzen, partie löschen. Die Stockfish Analyse sollte allerdings erst einen Tag nach Speichern verfügbar sein.
 
+21. Als Nutzer möchte ich Taktikaufgaben angezeigt bekommen, bei dem ich nach Elo die Schwierigkeit auswählen können. Diese Aufgaben sollten nicht mein Lichess Taktikrating ändern
+
 ## not solved:
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 
@@ -33,4 +35,5 @@
 
 19. Als Nutzer möchte ich auf jedem Schachbrett, sollte die Möglichkeit bestehen sich durch die Partie kurz durchzuklicken;
 20. Zuganzahl wird falsch angezeigt.
-21. Als Nutzer möchte ich Taktikaufgaben angezeigt bekommen, bei dem ich nach Elo die Schwierigkeit auswählen können. Diese Aufgaben sollten nicht mein Lichess Taktikrating ändern
+
+22. Als Nutzer möchte ich die Taktikaufgaben in der DB speichern, eine Tabelle für wrongTactics sollte erstellt werden.(vllt wäre es smart, es mit positionen zu verbinden) Die Spaltern der Tabelle: Rating, Topics; Vllt. ist es auch möglich, dann einen unterreiter "retry wrong tactics" hinzuzufügen. 
