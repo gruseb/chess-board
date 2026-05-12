@@ -1,5 +1,7 @@
 <script lang="ts">
     import { base } from '$app/paths';
+    import { game } from '$lib/game.svelte';
+    import { goto } from '$app/navigation';
     let { data } = $props();
 </script>
 
@@ -18,25 +20,78 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-outline-variant/5">
-                {#each data.games as game (game.id)}
+                {#each data.games as match (match.id)}
                     <tr class="hover:bg-white/5 transition-colors">
-                        <td class="p-4 text-on-surface">{new Date(game.created_at).toLocaleString()}</td>
-                        <td class="p-4 text-on-surface">{game.white_player}</td>
-                        <td class="p-4 text-on-surface">{game.black_player} {game.difficulty ? `(Lvl ${game.difficulty})` : ''}</td>
+                        <td class="p-4 text-on-surface">{new Date(match.created_at).toLocaleString()}</td>
+                        <td class="p-4 text-on-surface">{match.white_player}</td>
+                        <td class="p-4 text-on-surface">{match.black_player} {match.difficulty ? `(Lvl ${match.difficulty})` : ''}</td>
                         <td class="p-4">
-                            {#if game.result === 'white_won'}
+                            {#if match.result === 'white_won'}
                                 <span class="text-primary font-bold">1 - 0</span>
-                            {:else if game.result === 'black_won'}
+                            {:else if match.result === 'black_won'}
                                 <span class="text-error font-bold">0 - 1</span>
                             {:else}
                                 <span class="text-on-surface-variant font-bold">½ - ½</span>
                             {/if}
                         </td>
                         <td class="p-4">
-                            <a href="{base}/history/{game.id}" class="text-primary hover:underline font-semibold flex items-center gap-1">
-                                <span class="material-symbols-outlined text-sm">visibility</span>
-                                Ansehen
-                            </a>
+                            <div class="flex items-center gap-3">
+                                <a href="{base}/history/{match.id}" 
+                                   class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all group"
+                                   title="Ansehen">
+                                    <span class="material-symbols-outlined text-xl">visibility</span>
+                                </a>
+
+                                <button 
+                                    onclick={() => {
+                                        game.loadPgn(match.pgn, 'local');
+                                        goto(`${base}/`);
+                                    }}
+                                    class="p-2 rounded-lg hover:bg-secondary/10 text-on-surface-variant hover:text-secondary transition-all"
+                                    title="Partie fortsetzen"
+                                >
+                                    <span class="material-symbols-outlined text-xl">play_arrow</span>
+                                </button>
+
+                                <button 
+                                    onclick={() => {
+                                        game.loadPgn(match.pgn, 'analysis');
+                                        goto(`${base}/analysis`);
+                                    }}
+                                    class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all"
+                                    title="Selbst analysieren"
+                                >
+                                    <span class="material-symbols-outlined text-xl">psychology</span>
+                                </button>
+
+                                <button 
+                                    onclick={() => {
+                                        game.loadPgn(match.pgn, 'analysis', true);
+                                        goto(`${base}/analysis`);
+                                    }}
+                                    disabled={!game.canAnalyze(match.created_at)}
+                                    class="p-2 rounded-lg hover:bg-primary/10 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+                                    title={game.canAnalyze(match.created_at) ? 'Stockfish analysieren' : 'Analyse erst nach 24h verfügbar'}
+                                >
+                                    <span class="material-symbols-outlined text-xl">precision_manufacturing</span>
+                                </button>
+
+                                <button 
+                                    onclick={async () => {
+                                        if (confirm('Möchtest du diese Partie wirklich löschen?')) {
+                                            const success = await game.deleteGame(match.id);
+                                            if (success) {
+                                                // Refresh page data
+                                                window.location.reload();
+                                            }
+                                        }
+                                    }}
+                                    class="p-2 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error transition-all"
+                                    title="Löschen"
+                                >
+                                    <span class="material-symbols-outlined text-xl">delete</span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 {:else}

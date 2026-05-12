@@ -5,9 +5,32 @@
     
     let { data } = $props();
 
-    function openPosition(fen: string) {
-        game.loadFen(fen);
+
+    function viewPosition(pos: any) {
+        if (pos.partie?.pgn) {
+            game.loadPgn(pos.partie.pgn, 'view');
+        } else {
+            game.loadFen(pos.fen, 'view');
+        }
         goto(`${base}/`);
+    }
+
+    function continuePlaying(pos: any) {
+        if (pos.partie?.pgn) {
+            game.loadPgn(pos.partie.pgn, 'engine');
+        } else {
+            game.loadFen(pos.fen, 'engine');
+        }
+        goto(`${base}/`);
+    }
+
+    function startAnalysis(pos: any) {
+        if (pos.partie?.pgn) {
+            game.loadPgn(pos.partie.pgn, 'analysis', true);
+        } else {
+            game.loadFen(pos.fen, 'analysis', true);
+        }
+        goto(`${base}/analysis`);
     }
 </script>
 
@@ -27,7 +50,7 @@
                     <th class="p-4 font-semibold text-on-surface-variant">Datum</th>
                     <th class="p-4 font-semibold text-on-surface-variant">Titel</th>
                     <th class="p-4 font-semibold text-on-surface-variant">Am Zug</th>
-                    <th class="p-4 font-semibold text-on-surface-variant">Aktion</th>
+                    <th class="p-4 font-semibold text-on-surface-variant">Aktionen</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-outline-variant/5">
@@ -42,13 +65,32 @@
                             </span>
                         </td>
                         <td class="p-4">
-                            <button 
-                                onclick={() => openPosition(pos.fen)}
-                                class="text-primary hover:underline font-semibold flex items-center gap-1"
-                            >
-                                <span class="material-symbols-outlined text-sm">play_circle</span>
-                                Öffnen
-                            </button>
+                            <div class="flex flex-wrap gap-3">
+                                <button 
+                                    onclick={() => viewPosition(pos)}
+                                    class="text-on-surface hover:text-primary font-semibold flex items-center gap-1 transition-colors"
+                                    title="Stellung ansehen"
+                                >
+                                    <span class="material-symbols-outlined text-sm">visibility</span>
+                                    Ansehen
+                                </button>
+                                <button 
+                                    onclick={() => continuePlaying(pos)}
+                                    class="text-primary hover:text-primary-container font-semibold flex items-center gap-1 transition-colors"
+                                    title="Gegen Stockfish weiterspielen"
+                                >
+                                    <span class="material-symbols-outlined text-sm">psychology</span>
+                                    Weiterspielen
+                                </button>
+                                <button 
+                                    onclick={() => startAnalysis(pos)}
+                                    class="text-secondary hover:text-secondary-container font-semibold flex items-center gap-1 transition-colors"
+                                    title="Stellung mit Stockfish analysieren"
+                                >
+                                    <span class="material-symbols-outlined text-sm">analytics</span>
+                                    Analyse
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 {:else}

@@ -3,7 +3,7 @@ import { supabase } from '$lib/supabaseClient';
 export async function load() {
     const { data: positions, error } = await supabase
         .from('position')
-        .select('*')
+        .select('*, partie(pgn)')
         .order('created_at', { ascending: false });
 
     if (error) {

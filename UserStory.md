@@ -16,15 +16,19 @@
 
 16. Als Benuter möchte ich, die Möglichkeit haben, durch die Züge derPartien durchzuklicken, die ich mir angesehen habe, damit ich die Züge nachvollziehen kann.
 
+17. Als Benutzer möchte ich in der Navbar einen Reiter Analyse haben, wo ich beispielsweise wie in Lichess eine Evaluation bar sehe, die mir die Vorteile der einen oder anderen Seite anzeigt.
+    17.1 Sollte es die Möglichkeit geben, Untervarianten zu erzeugen, das dann wie ein "Variantenbaum" aussieht.
 
 ## not solved:
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 
 
 
-17. Als Benutzer möchte ich in der Navbar einen Reiter Analyse haben, wo ich beispielsweise wie in Lichess eine Evaluation bar sehe, die mir die Vorteile der einen oder anderen Seite anzeigt.
-    17.1 Sollte es die Möglichkeit geben, Untervarianten zu erzeugen, das dann wie ein "Variantenbaum" aussieht.
 
-18. Als Nutzer möchte ich mir eine Stockfish Analyse zu einer Partie oder zu einer Stellung ansehen können. Es sollte Unterschiedlichen Aktionen geben: Bei Positions: Weiterspielen; Stockfish analysieren lassen; Bei Partie: Stockfish analysieren, selbst analysieren, partie fortsetzen, partie löschen. Die Stockfish Analyse sollte allerdings erst einen Tag nach Speichern verfügbar sein.
+
+18. Als Nutzer möchte ich mir eine Stockfish Analyse zu einer Partie oder zu einer Stellung ansehen können. Es sollte Unterschiedlichen Aktionen geben: 
+        18.1 Bei Positions: Weiterspielen; Stockfish analysieren lassen; 
+        18.2 Bei Partie: Stockfish analysieren, selbst analysieren, partie fortsetzen, partie löschen. Die Stockfish Analyse sollte allerdings erst einen Tag nach Speichern verfügbar sein.
 
 19. Als Nutzer möchte ich auf jedem Schachbrett, sollte die Möglichkeit bestehen sich durch die Partie kurz durchzuklicken;
+20. Zuganzahl wird falsch angezeigt.

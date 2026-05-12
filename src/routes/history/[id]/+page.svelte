@@ -2,6 +2,8 @@
     import { Chess } from 'chess.js';
     import Piece from '$lib/components/Piece.svelte';
     import { base } from '$app/paths';
+    import { game } from '$lib/game.svelte';
+    import { goto } from '$app/navigation';
 
     let { data } = $props();
     
@@ -157,6 +159,58 @@
                         {/if}
                     </span>
                 </div>
+            </div>
+
+            <!-- Advanced Actions -->
+            <div class="mt-8 pt-6 border-t border-outline-variant/10 grid grid-cols-2 gap-3">
+                <button 
+                    onclick={() => {
+                        game.loadPgn(data.game.pgn, 'local');
+                        goto(`${base}/`);
+                    }}
+                    class="flex flex-col items-center gap-2 p-3 bg-surface-container-highest/50 rounded-xl hover:bg-secondary/10 text-on-surface hover:text-secondary transition-all border border-outline-variant/10"
+                >
+                    <span class="material-symbols-outlined">play_arrow</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Fortsetzen</span>
+                </button>
+
+                <button 
+                    onclick={() => {
+                        game.loadPgn(data.game.pgn, 'analysis');
+                        goto(`${base}/analysis`);
+                    }}
+                    class="flex flex-col items-center gap-2 p-3 bg-surface-container-highest/50 rounded-xl hover:bg-primary/10 text-on-surface hover:text-primary transition-all border border-outline-variant/10"
+                >
+                    <span class="material-symbols-outlined">psychology</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Analyse</span>
+                </button>
+
+                <button 
+                    onclick={() => {
+                        game.loadPgn(data.game.pgn, 'analysis', true);
+                        goto(`${base}/analysis`);
+                    }}
+                    disabled={!game.canAnalyze(data.game.created_at)}
+                    class="flex flex-col items-center gap-2 p-3 bg-surface-container-highest/50 rounded-xl hover:bg-primary/10 text-on-surface hover:text-primary transition-all border border-outline-variant/10 disabled:opacity-20"
+                >
+                    <span class="material-symbols-outlined">precision_manufacturing</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Stockfish</span>
+                </button>
+
+                <button 
+                    onclick={async () => {
+                        if (confirm('Möchtest du diese Partie wirklich löschen?')) {
+                            const success = await game.deleteGame(data.game.id);
+                            if (success) {
+                                goto(`${base}/history`);
+                            }
+                        }
+                    }}
+                    class="flex flex-col items-center gap-2 p-3 bg-surface-container-highest/50 rounded-xl hover:bg-error/10 text-on-surface hover:text-error transition-all border border-outline-variant/10"
+                >
+                    <span class="material-symbols-outlined">delete</span>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Löschen</span>
+                </button>
             </div>
         </div>
 

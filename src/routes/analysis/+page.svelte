@@ -4,6 +4,7 @@
 	import EvaluationBar from '$lib/components/EvaluationBar.svelte';
 	import { game } from '$lib/game.svelte';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 
 	onMount(() => {
 		game.setMode('analysis');
@@ -32,9 +33,11 @@
 
 		<div class="flex flex-row items-center gap-6">
 			<!-- Evaluation Bar -->
-			<div class="h-[600px]">
-				<EvaluationBar />
-			</div>
+			{#if game.isAnalyzing}
+				<div class="h-[600px]" transition:fly={{ x: -20, duration: 300 }}>
+					<EvaluationBar />
+				</div>
+			{/if}
 
 			<div class="flex flex-col gap-4">
 				<!-- Opponent Info (Stockfish) -->

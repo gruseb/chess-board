@@ -2,7 +2,6 @@
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { game } from '$lib/game.svelte';
-
 </script>
 
 <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">

@@ -2,7 +2,7 @@ import { Chess } from 'chess.js';
 import { supabase } from '$lib/supabaseClient';
 import { base } from '$app/paths';
 
-export type GameMode = 'local' | 'engine' | 'analysis';
+export type GameMode = 'local' | 'engine' | 'analysis' | 'view';
 
 export type SaveNotification = {
 	message: string;
@@ -21,6 +21,7 @@ export interface AnalysisNode {
 export type MoveNode = AnalysisNode;
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const ANALYSIS_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function makeId(): string {
 	return Math.random().toString(36).slice(2, 9);
@@ -40,6 +41,7 @@ export class GameStore {
 		{ id: 'root', san: '', fen: STARTING_FEN, parentId: null }
 	]);
 	currentNodeId = $state<string>('root');
+	viewPgn = $state<string | null>(null);
 
 	private engineWorker: Worker | null = null;
 	private engineReady = false;
@@ -120,7 +122,7 @@ export class GameStore {
 	}
 
 	private async saveGame() {
-		if (!this.isGameOver) return;
+		if (!this.isGameOver || this.history.length === 0) return;
 
 		let resultStr = 'draw';
 		if (this.isCheckmate) {
@@ -165,7 +167,7 @@ export class GameStore {
 	/** US13: Partie bis zum aktuellen Zeitpunkt speichern */
 	async saveCurrentGame() {
 		const pgn = this.chess.pgn();
-		if (!pgn) {
+		if (!pgn || this.history.length === 0) {
 			this.showNotification('Keine Züge zum Speichern vorhanden.', 'error');
 			return;
 		}
@@ -213,8 +215,8 @@ export class GameStore {
 	async saveCurrentPosition() {
 		const fen = this.chess.fen();
 
-		if (fen === STARTING_FEN) {
-			this.showNotification('Anfangsstellung muss nicht gespeichert werden.', 'error');
+		if (fen === STARTING_FEN || this.history.length === 0) {
+			this.showNotification('Position nach 0 Zügen muss nicht gespeichert werden.', 'error');
 			return;
 		}
 
@@ -229,12 +231,47 @@ export class GameStore {
 			return;
 		}
 
+		// Save current state as a 'partie' to have history
+		const pgn = this.chess.pgn();
+		let whitePlayer = 'User';
+		let blackPlayer = 'User';
+		let difficulty = null;
+
+		if (this.mode === 'engine') {
+			if (this.playerColor === 'w') {
+				blackPlayer = 'Stockfish';
+				difficulty = this.engineDifficulty;
+			} else {
+				whitePlayer = 'Stockfish';
+				difficulty = this.engineDifficulty;
+			}
+		}
+
+		const { data: partieData, error: partieError } = await supabase
+			.from('partie')
+			.insert({
+				pgn,
+				white_player: whitePlayer,
+				black_player: blackPlayer,
+				result: 'in_progress',
+				difficulty
+			})
+			.select()
+			.single();
+
+		if (partieError) {
+			console.error('Failed to save partie for position:', partieError);
+			this.showNotification('Fehler beim Speichern der Partie-Historie.', 'error');
+			return;
+		}
+
 		const colorToMove = this.turn === 'w' ? 'white' : 'black';
 
 		const { error } = await supabase.from('position').insert({
 			fen,
 			color_to_move: colorToMove,
-			title: `Position nach Zug ${this.history.length}`
+			title: `Position nach Zug ${Math.ceil(this.history.length / 2)}`,
+			partie_id: partieData.id
 		});
 
 		if (error) {
@@ -269,6 +306,9 @@ export class GameStore {
 	// Actions
 	move(from: string, to: string, promotion: string = 'q', isEngineMove: boolean = false) {
 		try {
+			if (this.mode === 'view') {
+				return null;
+			}
 			if (this.mode === 'engine' && !isEngineMove && this.turn !== this.playerColor) {
 				return null;
 			}
@@ -315,6 +355,7 @@ export class GameStore {
 	}
 
 	setMode(newMode: GameMode) {
+		if (this.mode === newMode) return;
 		this.mode = newMode;
 		if (newMode === 'analysis') {
 			this.resetAnalysis();
@@ -379,24 +420,120 @@ export class GameStore {
 		return result;
 	}
 
-	loadFen(fen: string) {
+	jumpToHistoryIndex(index: number) {
+		if (this.mode !== 'view' || !this.viewPgn) return;
+
+		const tempChess = new Chess();
+		tempChess.loadPgn(this.viewPgn);
+		const history = tempChess.history({ verbose: true });
+
+		if (index < -1 || index >= history.length) return;
+
+		const newChess = new Chess();
+		// Load header (FEN setup) if present
+		const setupFen = tempChess.header().FEN;
+		if (setupFen) {
+			newChess.load(setupFen);
+		}
+
+		for (let i = 0; i <= index; i++) {
+			newChess.move(history[i].san);
+		}
+		this.chess = newChess;
+	}
+
+	async deleteGame(id: string) {
+		const { error } = await supabase.from('partie').delete().eq('id', id);
+		if (error) {
+			console.error('Failed to delete game:', error);
+			this.showNotification('Fehler beim Löschen der Partie.', 'error');
+			return false;
+		} else {
+			this.showNotification('Partie gelöscht.', 'success');
+			return true;
+		}
+	}
+
+	canAnalyze(createdAt: string): boolean {
+		const createdDate = new Date(createdAt).getTime();
+		const now = new Date().getTime();
+		return (now - createdDate) >= ANALYSIS_DELAY_MS;
+	}
+
+	loadPgn(pgn: string, targetMode: GameMode = 'local', startAnalysis: boolean = false) {
+		try {
+			const newChess = new Chess();
+			newChess.loadPgn(pgn);
+			this.chess = newChess;
+			this.mode = targetMode;
+			this.viewPgn = targetMode === 'view' ? pgn : null;
+
+			if (targetMode === 'analysis') {
+				// Reconstruct flat analysis tree from PGN
+				const setupFen = newChess.header().FEN;
+				const startFen = setupFen || STARTING_FEN;
+				
+				const temp = new Chess();
+				if (setupFen) {
+					temp.load(setupFen);
+				}
+				
+				const history = newChess.history({ verbose: true });
+				
+				this.analysisNodes = [
+					{ id: 'root', san: '', fen: startFen, parentId: null }
+				];
+				this.currentNodeId = 'root';
+
+				for (const move of history) {
+					const parentId = this.currentNodeId;
+					temp.move(move);
+					const newNode: AnalysisNode = {
+						id: makeId(),
+						san: move.san,
+						fen: temp.fen(),
+						parentId: parentId
+					};
+					this.analysisNodes = [...this.analysisNodes, newNode];
+					this.currentNodeId = newNode.id;
+				}
+				
+				this.isAnalyzing = startAnalysis;
+				if (startAnalysis) this.triggerAnalysis();
+			} else {
+				this.toggleAnalysis(false);
+			}
+
+			this.showNotification('Partie geladen!', 'success');
+		} catch (e) {
+			console.error('Failed to load PGN:', e);
+			this.showNotification('Fehler beim Laden der PGN.', 'error');
+		}
+	}
+
+	loadFen(fen: string, targetMode: GameMode = 'local', startAnalysis: boolean = false) {
 		try {
 			const newChess = new Chess(fen);
 			this.chess = newChess;
-			this.showNotification('Position geladen!', 'success');
+			this.mode = targetMode;
+			this.viewPgn = targetMode === 'view' ? newChess.pgn() : null;
 
-			if (this.mode === 'analysis') {
+			if (targetMode === 'analysis') {
 				this.analysisNodes = [
 					{ id: 'root', san: '', fen, parentId: null }
 				];
 				this.currentNodeId = 'root';
+				this.isAnalyzing = startAnalysis;
+				if (startAnalysis) this.triggerAnalysis();
+			} else {
+				this.toggleAnalysis(false);
 			}
 
 			if (this.mode === 'engine' && this.turn !== this.playerColor) {
 				setTimeout(() => this.triggerEngineMove(), 500);
 			}
-
-			if (this.isAnalyzing) this.triggerAnalysis();
+			
+			this.showNotification('Position geladen!', 'success');
 		} catch (e) {
 			console.error('Failed to load FEN:', e);
 			this.showNotification('Fehler beim Laden der Position.', 'error');

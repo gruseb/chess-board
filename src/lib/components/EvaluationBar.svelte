@@ -23,13 +23,15 @@
 		if (score < 0) return score.toFixed(1);
 		return '0.0';
 	});
+
+	let isFlipped = $derived(game.playerColor === 'b');
 </script>
 
-<div class="evaluation-bar-container">
+<div class="evaluation-bar-container" class:flipped={isFlipped}>
 	<div class="bar-background">
-		<!-- Black section (bottom) -->
+		<!-- Black section (top when not flipped) -->
 		<div class="black-section"></div>
-		<!-- White section (top) -->
+		<!-- White section (bottom when not flipped) -->
 		<div class="white-section" style="height: {whiteHeight}%">
 			<span class="score-label white-score" class:hidden={whiteHeight < 10}>{displayScore}</span>
 		</div>
@@ -52,10 +54,14 @@
 
 	.bar-background {
 		display: flex;
-		flex-direction: column-reverse;
+		flex-direction: column; /* Black on top, White on bottom */
 		height: 100%;
 		width: 100%;
 		position: relative;
+	}
+
+	.flipped .bar-background {
+		flex-direction: column-reverse; /* White on top, Black on bottom */
 	}
 
 	.black-section {
@@ -69,7 +75,7 @@
 		width: 100%;
 		transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 		display: flex;
-		align-items: flex-end;
+		align-items: flex-start;
 		justify-content: center;
 		position: relative;
 		box-shadow: 0 -2px 10px rgba(255, 255, 255, 0.2);
@@ -87,14 +93,26 @@
 		pointer-events: none;
 	}
 
+	/* White score label is at the bottom of the white section (which is at the bottom of the bar) */
 	.white-score {
-		top: 8px;
+		bottom: 8px;
 		color: #262421;
 	}
 
+	.flipped .white-score {
+		top: 8px;
+		bottom: auto;
+	}
+
+	/* Black score label is at the top of the bar */
 	.black-score {
-		bottom: 8px;
+		top: 8px;
 		color: #ffffff;
+	}
+
+	.flipped .black-score {
+		bottom: 8px;
+		top: auto;
 	}
 
 	.hidden {

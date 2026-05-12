@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { game } from '$lib/game.svelte';
+
 	let { piece, square } = $props<{
 		piece: { type: string; color: string } | null;
 		square: string;
@@ -16,7 +18,10 @@
 	let isDragging = $state(false);
 
 	function onDragStart(e: DragEvent) {
-		if (!piece) return;
+		if (!piece || game.mode === 'view') {
+			e.preventDefault();
+			return;
+		}
 		isDragging = true;
 		if (e.dataTransfer) {
 			e.dataTransfer.setData('text/plain', square);
@@ -32,8 +37,8 @@
 {#if piece}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing {isDragging ? 'opacity-50' : 'opacity-100'}"
-		draggable="true"
+		class="w-full h-full flex items-center justify-center {game.mode === 'view' ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} {isDragging ? 'opacity-50' : 'opacity-100'}"
+		draggable={game.mode !== 'view'}
 		ondragstart={onDragStart}
 		ondragend={onDragEnd}
 	>
