@@ -23,7 +23,7 @@
 	}
 
 	const isContinueDisabled = $derived(
-		!game.tacticsPuzzle || game.tacticsStatus === 'loading' || game.tacticsSolved
+		!game.tacticsPuzzle || game.tacticsStatus === 'loading' || !game.tacticsSolved
 	);
 
 	function getTacticsFeedback(status: typeof game.tacticsStatus) {
