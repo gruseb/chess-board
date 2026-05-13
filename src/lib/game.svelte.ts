@@ -19,6 +19,19 @@ export interface TacticsPuzzle {
 	themes: string;
 }
 
+type TacticsSource = 'live' | 'retry';
+
+interface WrongTacticRecord {
+	puzzle_id: string;
+	rating: number;
+	topics: string[] | null;
+	fen: string;
+	moves: string[];
+	color_to_move: 'white' | 'black';
+	position_id: string | null;
+	last_failed_at: string;
+}
+
 interface RawTacticsPuzzle {
 	puzzleid?: string;
 	fen?: string;
@@ -70,6 +83,25 @@ function normalizeTacticsPuzzle(raw: RawTacticsPuzzle): TacticsPuzzle | null {
 	};
 }
 
+function normalizeWrongTactic(raw: WrongTacticRecord): TacticsPuzzle | null {
+	if (!raw.puzzle_id || !raw.fen || !Array.isArray(raw.moves) || typeof raw.rating !== 'number') {
+		return null;
+	}
+
+	const moves = raw.moves.filter((move) => typeof move === 'string' && move.length >= 4).join(' ');
+	if (!moves) {
+		return null;
+	}
+
+	return {
+		puzzleid: raw.puzzle_id,
+		fen: raw.fen,
+		moves,
+		rating: raw.rating,
+		themes: (raw.topics ?? []).join(' ')
+	};
+}
+
 export class GameStore {
 	private chess = $state(new Chess());
 	mode = $state<GameMode>('local');
@@ -95,6 +127,8 @@ export class GameStore {
 	tacticsStatus = $state<TacticsStatus>('idle');
 	tacticsError = $state<string | null>(null);
 	tacticsSolved = $state(false);
+	tacticsSource = $state<TacticsSource>('live');
+	wrongTacticsCount = $state(0);
 
 	private tacticsRequestId = 0;
 	private tacticsReplyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -241,9 +275,137 @@ export class GameStore {
 		this.tacticsStatus = status;
 		this.tacticsError = null;
 		this.tacticsSolved = false;
+		this.tacticsSource = 'live';
 		this.viewIndex = -1;
 		this.viewPgn = null;
 		this.activePgn = null;
+	}
+
+	async refreshWrongTacticsCount() {
+		const { count, error } = await supabase
+			.from('wrong_tactics')
+			.select('id', { count: 'exact', head: true });
+
+		if (error) {
+			console.error('Failed to load wrong tactics count:', error);
+			return;
+		}
+
+		this.wrongTacticsCount = count ?? 0;
+	}
+
+	private async saveCurrentTacticAsWrong() {
+		if (!this.tacticsPuzzle) {
+			return;
+		}
+
+		const topics = this.tacticsPuzzle.themes
+			.split(' ')
+			.map((topic) => topic.trim())
+			.filter(Boolean);
+		const colorToMove = this.playerColor === 'w' ? 'white' : 'black';
+		let positionId: string | null = null;
+
+		const { data: existingPosition, error: existingPositionError } = await supabase
+			.from('position')
+			.select('id')
+			.eq('fen', this.tacticsPuzzle.fen)
+			.maybeSingle();
+
+		if (existingPositionError) {
+			console.error('Failed to load tactics position:', existingPositionError);
+		} else if (existingPosition) {
+			positionId = existingPosition.id;
+		} else {
+			const { data: newPosition, error: insertPositionError } = await supabase
+				.from('position')
+				.insert({
+					fen: this.tacticsPuzzle.fen,
+					color_to_move: colorToMove,
+					correct_moves: this.tacticsCorrectMoves,
+					title: `Wrong tactic ${this.tacticsPuzzle.puzzleid}`,
+					explanation: `Topics: ${topics.join(', ')}`
+				})
+				.select('id')
+				.single();
+
+			if (insertPositionError) {
+				console.error('Failed to save tactics position:', insertPositionError);
+			} else {
+				positionId = newPosition.id;
+			}
+		}
+
+		const { error } = await supabase.from('wrong_tactics').upsert(
+			{
+				puzzle_id: this.tacticsPuzzle.puzzleid,
+				rating: this.tacticsPuzzle.rating,
+				topics: topics,
+				fen: this.tacticsPuzzle.fen,
+				moves: this.tacticsCorrectMoves,
+				color_to_move: colorToMove,
+				position_id: positionId,
+				last_failed_at: new Date().toISOString()
+			},
+			{ onConflict: 'puzzle_id' }
+		);
+
+		if (error) {
+			console.error('Failed to save wrong tactic:', error);
+			return;
+		}
+
+		await this.refreshWrongTacticsCount();
+	}
+
+	private async clearSolvedWrongTactic() {
+		if (!this.tacticsPuzzle || this.tacticsSource !== 'retry') {
+			return;
+		}
+
+		const { error } = await supabase
+			.from('wrong_tactics')
+			.delete()
+			.eq('puzzle_id', this.tacticsPuzzle.puzzleid);
+
+		if (error) {
+			console.error('Failed to delete solved wrong tactic:', error);
+			return;
+		}
+
+		await this.refreshWrongTacticsCount();
+	}
+
+	private startTacticsPuzzle(puzzle: TacticsPuzzle, source: TacticsSource) {
+		const moves = typeof puzzle.moves === 'string' ? puzzle.moves.split(' ').filter(Boolean) : [];
+
+		if (moves.length === 0) {
+			throw new Error('Invalid puzzle payload');
+		}
+
+		this.tacticsPuzzle = puzzle;
+		this.tacticsCorrectMoves = moves;
+		this.tacticsIndex = 0;
+		this.tacticsSource = source;
+
+		this.chess = new Chess(puzzle.fen);
+
+		const firstMove = this.tacticsCorrectMoves[0];
+		const setupMove = this.chess.move({
+			from: firstMove.substring(0, 2),
+			to: firstMove.substring(2, 4),
+			promotion: firstMove.length === 5 ? firstMove[4] : 'q'
+		});
+
+		if (!setupMove) {
+			throw new Error('Invalid setup move');
+		}
+
+		this.syncChessFromFen();
+
+		this.tacticsIndex = 1;
+		this.tacticsStatus = 'playing';
+		this.playerColor = this.turn;
 	}
 
 	private syncChessFromFen() {
@@ -712,36 +874,7 @@ export class GameStore {
 					throw new Error('Invalid puzzle payload');
 				}
 
-				const moves = typeof puzzle.moves === 'string' ? puzzle.moves.split(' ').filter(Boolean) : [];
-
-				if (moves.length === 0) {
-					throw new Error('Invalid puzzle payload');
-				}
-
-				this.tacticsPuzzle = puzzle;
-				this.tacticsCorrectMoves = moves;
-				this.tacticsIndex = 0;
-
-				// Initialize the board with the puzzle FEN
-				this.chess = new Chess(puzzle.fen);
-
-				// The first move in the puzzle creates the tactical position the user should solve.
-				const firstMove = this.tacticsCorrectMoves[0];
-				const setupMove = this.chess.move({
-					from: firstMove.substring(0, 2),
-					to: firstMove.substring(2, 4),
-					promotion: firstMove.length === 5 ? firstMove[4] : 'q'
-				});
-
-				if (!setupMove) {
-					throw new Error('Invalid setup move');
-				}
-
-				this.syncChessFromFen();
-
-				this.tacticsIndex = 1;
-				this.tacticsStatus = 'playing';
-				this.playerColor = this.turn;
+				this.startTacticsPuzzle(puzzle, 'live');
 
 				this.showNotification('Taktikaufgabe bereit!', 'success');
 			} else {
@@ -757,6 +890,64 @@ export class GameStore {
 			this.tacticsStatus = 'error';
 			this.tacticsError = 'Die Taktikaufgabe konnte nicht geladen werden. Bitte versuche es gleich noch einmal.';
 			this.showNotification('Fehler beim Laden der Taktikaufgabe.', 'error');
+		}
+	}
+
+	async loadWrongTactic() {
+		const previousPuzzleId = this.tacticsPuzzle?.puzzleid ?? null;
+		const requestId = ++this.tacticsRequestId;
+		this.resetTacticsState('loading');
+		this.mode = 'tactics';
+		this.playerColor = 'w';
+		this.showNotification('Lade gespeicherte Fehlaufgabe...', 'success');
+
+		try {
+			const { data, error } = await supabase
+				.from('wrong_tactics')
+				.select('puzzle_id, rating, topics, fen, moves, color_to_move, position_id, last_failed_at')
+				.order('last_failed_at', { ascending: false });
+
+			if (error) {
+				throw error;
+			}
+
+			if (requestId !== this.tacticsRequestId) {
+				return;
+			}
+
+			const rows = (data ?? []) as WrongTacticRecord[];
+			const candidates = previousPuzzleId
+				? rows.filter((row) => row.puzzle_id !== previousPuzzleId)
+				: rows;
+			const pool = candidates.length > 0 ? candidates : rows;
+
+			if (pool.length === 0) {
+				this.tacticsStatus = 'empty';
+				this.tacticsError = 'Es gibt noch keine falsch geloesten Taktiken zum Wiederholen.';
+				this.wrongTacticsCount = 0;
+				this.showNotification('Keine gespeicherten Fehlaufgaben gefunden.', 'error');
+				return;
+			}
+
+			const selectedPuzzle = pool[Math.floor(Math.random() * pool.length)];
+			const puzzle = normalizeWrongTactic(selectedPuzzle);
+
+			if (!puzzle) {
+				throw new Error('Invalid wrong tactic payload');
+			}
+
+			this.startTacticsPuzzle(puzzle, 'retry');
+			this.wrongTacticsCount = rows.length;
+			this.showNotification('Gespeicherte Fehlaufgabe bereit!', 'success');
+		} catch (e) {
+			if (requestId !== this.tacticsRequestId) {
+				return;
+			}
+
+			console.error('Failed to load wrong tactic:', e);
+			this.tacticsStatus = 'error';
+			this.tacticsError = 'Die gespeicherte Fehlaufgabe konnte nicht geladen werden.';
+			this.showNotification('Fehler beim Laden der Fehlaufgaben.', 'error');
 		}
 	}
 
@@ -802,10 +993,12 @@ export class GameStore {
 			} else {
 				this.tacticsStatus = 'completed';
 				this.tacticsSolved = true;
+				void this.clearSolvedWrongTactic();
 				this.showNotification('Hervorragend! Aufgabe gelöst.', 'success');
 			}
 		} else {
 			this.tacticsStatus = 'wrong';
+			void this.saveCurrentTacticAsWrong();
 			this.showNotification('Falscher Zug. Versuche es noch einmal!', 'error');
 			// Undo the move
 			const requestId = this.tacticsRequestId;

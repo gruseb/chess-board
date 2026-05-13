@@ -4,9 +4,11 @@
 	import { onMount } from 'svelte';
 
 	let selectedRating = $state(1500);
+	let activeTab = $state<'live' | 'retry'>('live');
 	const ratings = [1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2200, 2500];
 
 	onMount(() => {
+		void game.refreshWrongTacticsCount();
 		// Load a default puzzle if none is active
 		if (game.mode !== 'tactics' || !game.tacticsPuzzle) {
 			void game.loadTactics(selectedRating);
@@ -14,11 +16,28 @@
 	});
 
 	function nextPuzzle() {
+		if (activeTab === 'retry') {
+			void game.loadWrongTactic();
+			return;
+		}
+
 		void game.loadTactics(selectedRating);
 	}
 
 	function selectRating(rating: number) {
 		selectedRating = rating;
+		activeTab = 'live';
+		void game.loadTactics(selectedRating);
+	}
+
+	function selectTab(tab: 'live' | 'retry') {
+		activeTab = tab;
+
+		if (tab === 'retry') {
+			void game.loadWrongTactic();
+			return;
+		}
+
 		void game.loadTactics(selectedRating);
 	}
 
@@ -105,9 +124,32 @@
 				Tactics <span class="text-primary italic">Training</span>
 			</h1>
 			<p class="max-w-md text-sm text-on-surface-variant/80">
-				Schärfe deinen Blick für Kombinationen. Wähle eine Elo-Stufe und trainiere lokale
-				Taktikaufgaben in der App.
+				Schärfe deinen Blick für Kombinationen. Wähle eine Elo-Stufe oder wiederhole zuvor falsch
+				gelöste Aufgaben direkt aus Supabase.
 			</p>
+		</div>
+
+		<div
+			class="flex w-full max-w-md gap-2 rounded-2xl border border-outline-variant/10 bg-surface-container-low p-2 shadow-lg"
+		>
+			<button
+				onclick={() => selectTab('live')}
+				class="flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all {activeTab ===
+				'live'
+					? 'bg-primary text-on-primary shadow-lg shadow-primary/20'
+					: 'text-on-surface-variant hover:bg-surface-container-highest'}"
+			>
+				Neue Aufgaben
+			</button>
+			<button
+				onclick={() => selectTab('retry')}
+				class="flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition-all {activeTab ===
+				'retry'
+					? 'bg-secondary text-on-primary shadow-lg shadow-secondary/20'
+					: 'text-on-surface-variant hover:bg-surface-container-highest'}"
+			>
+				Retry wrong tactics ({game.wrongTacticsCount})
+			</button>
 		</div>
 
 		<ChessBoard />
@@ -136,21 +178,29 @@
 		>
 			<h2 class="flex items-center gap-2 text-lg font-bold text-secondary">
 				<span class="material-symbols-outlined">psychology</span>
-				Level wählen
+				{activeTab === 'retry' ? 'Retry falsch gelöster Aufgaben' : 'Level wählen'}
 			</h2>
-			<p class="text-xs text-on-surface-variant/80">
-				Die Auswahl lädt Aufgaben im Bereich {selectedRating} bis {selectedRating + 100} Elo.
-			</p>
+			{#if activeTab === 'retry'}
+				<p class="text-xs text-on-surface-variant/80">
+					Geladene Aufgaben stammen aus der Tabelle <span class="font-semibold text-on-surface"
+						>wrong_tactics</span
+					>. Sobald du eine Aufgabe korrekt löst, wird sie aus der Retry-Liste entfernt.
+				</p>
+			{:else}
+				<p class="text-xs text-on-surface-variant/80">
+					Die Auswahl lädt Aufgaben im Bereich {selectedRating} bis {selectedRating + 100} Elo.
+				</p>
+			{/if}
 
 			<div class="grid grid-cols-3 gap-2">
 				{#each ratings as rating (rating)}
 					<button
 						onclick={() => selectRating(rating)}
-						disabled={game.tacticsStatus === 'loading'}
+						disabled={game.tacticsStatus === 'loading' || activeTab === 'retry'}
 						class="rounded-xl border px-3 py-2 text-sm font-semibold transition-all {selectedRating ===
 						rating
 							? 'scale-105 border-primary bg-primary text-on-primary shadow-lg shadow-primary/20'
-							: 'border-outline-variant/10 bg-surface-container-highest text-on-surface-variant hover:bg-white/5'}"
+							: 'border-outline-variant/10 bg-surface-container-highest text-on-surface-variant hover:bg-white/5'} disabled:cursor-not-allowed disabled:opacity-45"
 					>
 						{rating}
 					</button>
@@ -160,19 +210,23 @@
 			<button
 				onclick={nextPuzzle}
 				disabled={game.tacticsStatus === 'loading'}
-				class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-bold text-on-primary-container shadow-[0_8px_30_rgba(255,145,84,0.3)] transition-all hover:bg-primary-container active:scale-[0.98]"
+				class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-bold text-on-primary-container shadow-[0_8px_30px_rgba(255,145,84,0.3)] transition-all hover:bg-primary-container active:scale-[0.98]"
 			>
 				<span class="material-symbols-outlined"
 					>{game.tacticsStatus === 'loading' ? 'progress_activity' : 'refresh'}</span
 				>
-				{game.tacticsPuzzle ? 'Aufgabe überspringen' : 'Aufgabe laden'}
+				{#if activeTab === 'retry'}
+					{game.tacticsPuzzle ? 'Nächste Fehlaufgabe laden' : 'Fehlaufgabe laden'}
+				{:else}
+					{game.tacticsPuzzle ? 'Aufgabe überspringen' : 'Aufgabe laden'}
+				{/if}
 			</button>
 
 			<div
 				class="rounded-2xl border border-outline-variant/10 bg-surface-container-highest px-4 py-3 text-xs text-on-surface-variant/85"
 			>
-				Dieses Training läuft nur lokal in dieser App. Es gibt keine Lichess-Anbindung und kein
-				externes Taktikrating wird verändert.
+				Dieses Training verändert kein externes Taktikrating. Fehlversuche werden zusätzlich in
+				Supabase gespeichert und stehen im Retry-Unterreiter wieder bereit.
 			</div>
 		</div>
 

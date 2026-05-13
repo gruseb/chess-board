@@ -35,5 +35,4 @@
 
 19. Als Nutzer möchte ich auf jedem Schachbrett, sollte die Möglichkeit bestehen sich durch die Partie kurz durchzuklicken;
 20. Zuganzahl wird falsch angezeigt.
-
-22. Als Nutzer möchte ich die Taktikaufgaben in der DB speichern, eine Tabelle für wrongTactics sollte erstellt werden.(vllt wäre es smart, es mit positionen zu verbinden) Die Spaltern der Tabelle: Rating, Topics; Vllt. ist es auch möglich, dann einen unterreiter "retry wrong tactics" hinzuzufügen. 
+22. Als Nutzer möchte ich die Taktikaufgaben in der DB speichern, eine Tabelle für wrongTactics sollte erstellt werden.(vllt wäre es smart, es mit positionen zu verbinden) Die Spaltern der Tabelle: Rating, Topics; Vllt. ist es auch möglich, dann einen unterreiter "retry wrong tactics" hinzuzufügen. Mit verbundenen Supabase Projekt!
