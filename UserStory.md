@@ -27,6 +27,8 @@
 
 ## not solved:
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
+23. falsche Zuganzahl
+24. neue designs, dass man rechts oben auswählen kann
 
 
 

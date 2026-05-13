@@ -6,13 +6,23 @@
 		square: string;
 	}>();
 
-	const iconMap: Record<string, string> = {
-		p: 'chess_pawn',
-		r: 'chess_rook',
-		n: 'chess_knight',
-		b: 'chess_bishop',
-		q: 'chess_queen',
-		k: 'chess_king'
+	const unicodeMap: Record<string, Record<string, string>> = {
+		w: {
+			k: '♔',
+			q: '♕',
+			r: '♖',
+			b: '♗',
+			n: '♘',
+			p: '♙'
+		},
+		b: {
+			k: '♚',
+			q: '♛',
+			r: '♜',
+			b: '♝',
+			n: '♞',
+			p: '♟'
+		}
 	};
 
 	let isDragging = $state(false);
@@ -37,33 +47,33 @@
 {#if piece}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="w-full h-full flex items-center justify-center {game.mode === 'view' ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} {isDragging ? 'opacity-50' : 'opacity-100'}"
+		class="flex h-full w-full items-center justify-center {game.mode === 'view'
+			? 'cursor-default'
+			: 'cursor-grab active:cursor-grabbing'} {isDragging ? 'opacity-50' : 'opacity-100'}"
 		draggable={game.mode !== 'view'}
 		ondragstart={onDragStart}
 		ondragend={onDragEnd}
 	>
-		<span
-			class="material-symbols-outlined piece-icon {piece.color === 'w' ? 'piece-white' : 'piece-black'}"
-			style="font-size: 2.75rem;"
-		>
-			{iconMap[piece.type]}
+		<span class="piece-icon {piece.color === 'w' ? 'piece-white' : 'piece-black'}">
+			{unicodeMap[piece.color]?.[piece.type]}
 		</span>
 	</div>
 {/if}
 
 <style>
 	.piece-icon {
+		font-size: 2.9rem;
+		line-height: 1;
 		user-select: none;
 	}
 	.piece-black {
-		background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #475569 100%);
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
-		filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+		color: #1a1a1a;
+		text-shadow:
+			0 0 2px rgba(255, 255, 255, 0.5),
+			0 0 6px rgba(255, 255, 255, 0.25);
 	}
 	.piece-white {
-		color: #ffffff;
-		filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+		color: #f8f8f8;
+		text-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
 	}
 </style>

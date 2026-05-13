@@ -60,10 +60,87 @@
   --font-label: "Inter", sans-serif;
 }
 
+:root,
+[data-theme='halloween'] {
+  --header-bg: linear-gradient(180deg, rgba(10, 8, 14, 0.92) 0%, rgba(18, 11, 26, 0.68) 100%);
+  --header-border: rgba(255, 145, 84, 0.2);
+  --header-shadow: 0 6px 20px rgba(255, 145, 84, 0.18);
+  --header-accent: var(--color-primary);
+}
+
+[data-theme='plain'] {
+  --color-inverse-on-surface: #504c47;
+  --color-outline-variant: #d6cfc6;
+  --color-surface-container: #f4efe7;
+  --color-surface: #fbf9f4;
+  --color-on-tertiary-container: #3b3b3b;
+  --color-on-tertiary-fixed-variant: #4a4a4a;
+  --color-error-container: #f2c2b8;
+  --color-surface-tint: #2f6b5f;
+  --color-on-secondary-fixed-variant: #4f4a43;
+  --color-surface-container-low: #f7f2ea;
+  --color-on-tertiary-fixed: #2f2f2f;
+  --color-error-dim: #d66b5b;
+  --color-on-surface: #2a2622;
+  --color-tertiary-fixed-dim: #d3cdc4;
+  --color-on-secondary: #3d3730;
+  --color-primary-fixed: #2f6b5f;
+  --color-on-surface-variant: #5b524a;
+  --color-surface-container-highest: #efe8de;
+  --color-on-error: #3a1d18;
+  --color-surface-container-high: #f2ece3;
+  --color-surface-dim: #f1ece4;
+  --color-background: #f8f4ed;
+  --color-on-tertiary: #3c3c3c;
+  --color-on-secondary-fixed: #3b352f;
+  --color-primary: #2f6b5f;
+  --color-secondary: #cabfb2;
+  --color-primary-container: #cfe3dc;
+  --color-on-primary-fixed: #0b1412;
+  --color-secondary-dim: #bfb2a4;
+  --color-on-error-container: #3a1d18;
+  --color-on-primary-fixed-variant: #1f3e36;
+  --color-on-primary-container: #173730;
+  --color-tertiary-container: #e7e0d6;
+  --color-primary-fixed-dim: #285c52;
+  --color-primary-dim: #25554c;
+  --color-secondary-fixed: #e4dbd0;
+  --color-secondary-fixed-dim: #d6ccc1;
+  --color-inverse-primary: #2c5a50;
+  --color-tertiary: #8d857a;
+  --color-on-primary: #f7f4ef;
+  --color-tertiary-fixed: #e6ddd2;
+  --color-on-background: #2a2622;
+  --color-secondary-container: #e1d7cc;
+  --color-inverse-surface: #2a2622;
+  --color-tertiary-dim: #cfc6bb;
+  --color-surface-container-lowest: #ffffff;
+  --color-error: #b54a3b;
+  --color-surface-bright: #fffdf9;
+  --color-surface-variant: #eee6dc;
+  --color-on-secondary-container: #3e3a35;
+  --color-outline: #c3b9ad;
+
+  --font-headline: "Space Grotesk", sans-serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --font-label: "IBM Plex Sans", sans-serif;
+
+  --header-bg: #f8f4ed;
+  --header-border: rgba(0, 0, 0, 0.08);
+  --header-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  --header-accent: var(--color-primary);
+}
+
 @layer base {
   body {
     @apply bg-background text-on-surface font-body selection:bg-primary/30 min-h-screen flex flex-col;
   }
+}
+
+.app-header {
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--header-border);
+  box-shadow: var(--header-shadow);
 }
 
 .mist-overlay {

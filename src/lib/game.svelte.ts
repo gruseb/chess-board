@@ -58,6 +58,7 @@ export type MoveNode = AnalysisNode;
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 const ANALYSIS_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const TACTICS_POOL_SIZE = 12;
 
 function makeId(): string {
 	return Math.random().toString(36).slice(2, 9);
@@ -81,6 +82,11 @@ function normalizeTacticsPuzzle(raw: RawTacticsPuzzle): TacticsPuzzle | null {
 		rating,
 		themes
 	};
+}
+
+function getPuzzleId(raw: RawTacticsPuzzle): string | null {
+	const puzzleid = raw.puzzleid ?? raw.PuzzleId;
+	return typeof puzzleid === 'string' ? puzzleid : null;
 }
 
 function normalizeWrongTactic(raw: WrongTacticRecord): TacticsPuzzle | null {
@@ -857,11 +863,28 @@ export class GameStore {
 				params.set('exclude', previousPuzzleId);
 			}
 
+			let data: RawTacticsPuzzle[] = [];
 			const response = await fetch(`${base}/api/tactics?${params.toString()}`);
-			if (!response.ok) {
-				throw new Error(`HTTP ${response.status}`);
+			if (response.status === 404) {
+				const upstream = await fetch(
+					`https://chess-puzzles-api.vercel.app/puzzles?min_rating=${rating}&max_rating=${rating + 100}&limit=${TACTICS_POOL_SIZE}`
+				);
+				if (!upstream.ok) {
+					throw new Error(`HTTP ${upstream.status}`);
+				}
+				const payload = await upstream.json();
+				const puzzles = Array.isArray(payload) ? payload : [];
+				const candidates = previousPuzzleId
+					? puzzles.filter((puzzle) => getPuzzleId(puzzle as RawTacticsPuzzle) !== previousPuzzleId)
+					: puzzles;
+				const pool = candidates.length > 0 ? candidates : puzzles;
+				data = pool.length > 0 ? [pool[Math.floor(Math.random() * pool.length)]] : [];
+			} else {
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}`);
+				}
+				data = await response.json();
 			}
-			const data = await response.json();
 
 			if (requestId !== this.tacticsRequestId) {
 				return;
