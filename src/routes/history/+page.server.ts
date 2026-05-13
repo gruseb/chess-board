@@ -1,15 +1,25 @@
 import { supabase } from '$lib/supabaseClient';
-import { LICHESS_API_KEY } from '$env/static/private';
-import { PUBLIC_LICHESS_USERNAME } from '$env/static/public';
+import { env as privateEnv } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 export async function load() {
     let syncResult: { success: boolean, count: number, error: string | null } = { success: false, count: 0, error: null };
+    const lichessApiKey = privateEnv.LICHESS_API_KEY;
+    const lichessUsername = publicEnv.PUBLIC_LICHESS_USERNAME ?? privateEnv.LICHESS_USERNAME;
+
+    if (!lichessApiKey || !lichessUsername) {
+        syncResult.error = 'Lichess sync disabled: missing env vars.';
+    }
 
     // 1. Fetch latest Lichess games
     try {
-        const response = await fetch(`https://lichess.org/api/games/user/${PUBLIC_LICHESS_USERNAME}?max=10&perfType=rapid&pgnInJson=true`, {
+        if (!lichessApiKey || !lichessUsername) {
+            throw new Error(syncResult.error ?? 'Missing Lichess env vars');
+        }
+
+        const response = await fetch(`https://lichess.org/api/games/user/${lichessUsername}?max=10&perfType=rapid&pgnInJson=true`, {
             headers: {
-                'Authorization': `Bearer ${LICHESS_API_KEY}`,
+                'Authorization': `Bearer ${lichessApiKey}`,
                 'Accept': 'application/x-ndjson'
             }
         });
@@ -41,7 +51,7 @@ export async function load() {
                 const { error: upsertError } = await supabase
                     .from('partie')
                     .upsert(lichessGames, { onConflict: 'external_id' });
-                
+
                 if (upsertError) {
                     syncResult.error = upsertError.message;
                     console.error("Supabase Upsert Error:", upsertError);
