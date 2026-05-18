@@ -4,6 +4,8 @@
 	let { children } = $props();
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
+	import { supabase } from '$lib/supabaseClient';
+	import type { User } from '@supabase/supabase-js';
 
 	type ThemeId = 'halloween' | 'plain';
 	const themes: { id: ThemeId; label: string }[] = [
@@ -11,6 +13,31 @@
 		{ id: 'plain', label: 'Schlicht' }
 	];
 	let activeTheme = $state<ThemeId>('halloween');
+	let user = $state<User | null>(null);
+	let lichessUsername = $state<string | null>(null);
+
+	async function refreshUser() {
+		const { data } = await supabase.auth.getSession();
+		user = data.session?.user ?? null;
+	}
+
+	$effect(() => {
+		// Subscribe to page transitions to reactively update the username
+		const path = $page.url.pathname;
+		
+		if (user) {
+			supabase
+				.from('user_lichess')
+				.select('lichess_username')
+				.eq('user_id', user.id)
+				.maybeSingle()
+				.then(({ data }) => {
+					lichessUsername = data?.lichess_username ?? null;
+				});
+		} else {
+			lichessUsername = null;
+		}
+	});
 
 	function applyTheme(theme: ThemeId) {
 		activeTheme = theme;
@@ -25,6 +52,15 @@
 		} else {
 			applyTheme('halloween');
 		}
+
+		void refreshUser();
+		const { data: authSubscription } = supabase.auth.onAuthStateChange(() => {
+			void refreshUser();
+		});
+
+		return () => {
+			authSubscription.subscription.unsubscribe();
+		};
 	});
 </script>
 
@@ -113,7 +149,7 @@
 			class="flex items-center gap-2 rounded-full border border-outline-variant/30 bg-surface-container-highest px-3 py-1"
 		>
 			<span class="material-symbols-outlined text-primary">account_circle</span>
-			<span class="text-sm font-medium">Player 1</span>
+			<span class="text-sm font-medium">{lichessUsername || 'Player 1'}</span>
 		</div>
 	</div>
 </header>

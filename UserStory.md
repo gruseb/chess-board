@@ -37,4 +37,4 @@
 3. Wenn die Website neu geöffnet wird, dann sollten alle neuen Schnellschachpartien von dem User angezeigt werden, wenn er auf den Button "Jetzt synchronisieren" drückt. enn der User sein Lichess-Account angegeben hat. (muss noch überprüft werden, ob es funktioniert!!!!!!!)
 
 
-4. Zuganzahl wird falsch angezeigt.
+
