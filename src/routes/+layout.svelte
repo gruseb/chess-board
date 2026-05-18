@@ -85,6 +85,12 @@
 					? 'text-primary'
 					: 'text-on-surface-variant hover:text-on-surface'} transition-colors">Positions</a
 			>
+			<a
+				href="{base}/account/"
+				class="text-sm font-semibold {$page.url.pathname.startsWith(`${base}/account/`)
+					? 'text-primary'
+					: 'text-on-surface-variant hover:text-on-surface'} transition-colors">Account</a
+			>
 		</nav>
 	</div>
 	<div class="flex items-center gap-4">

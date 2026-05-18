@@ -24,18 +24,18 @@
 
 21. Als Nutzer möchte ich Taktikaufgaben angezeigt bekommen, bei dem ich nach Elo die Schwierigkeit auswählen können. Diese Aufgaben sollten nicht mein Lichess Taktikrating ändern
 22. Als Nutzer möchte ich die Taktikaufgaben in der DB speichern, eine Tabelle für wrongTactics sollte erstellt werden.(vllt wäre es smart, es mit positionen zu verbinden) Die Spaltern der Tabelle: Rating, Topics; Vllt. ist es auch möglich, dann einen unterreiter "retry wrong tactics" hinzuzufügen. Mit verbundenen Supabase Projekt!
-
+24. neue designs, dass man rechts oben auswählen kann
+26. Man sollte sich als User registrieren können und dann einloggen können, ich möchte mit meinem account auch Accounts löschen können.
+26. Die User Infos sollten im LocalStorage gespeichert werden, so dass ich mich nicht immer anmelden muss
 ## not solved:
 10. Als Benutzer möchte ich, viele bereiche des Endspiels trainieren können. Dafür kann man Kurse erstellen, wo man ein Endspiel lösen muss und das Programm bewertet ob es richtig war. Der Kurs sollte erklären, wie man diesen Endspieltyp spielt und welche Fehler häufig passieren.
 23. falsche Zuganzahl
-24. neue designs, dass man rechts oben auswählen kann
+
+25. Wenn die Website neu geladen wird, dann sollten alle neuen Schnellschachpartien von sebastianflorian2000 geladen werden. (muss noch überprüft werden, ob es funktioniert!!!!!!!)
+27. lichess partien laden
 
 
 
 
-
-
-
-19. Als Nutzer möchte ich auf jedem Schachbrett, sollte die Möglichkeit bestehen sich durch die Partie kurz durchzuklicken;
 20. Zuganzahl wird falsch angezeigt.
 

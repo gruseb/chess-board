@@ -220,6 +220,8 @@ export class GameStore {
 
 	private async saveGame() {
 		if (!this.isGameOver || this.history.length === 0) return;
+		const userId = await this.getCurrentUserId(true);
+		if (!userId) return;
 
 		let resultStr = 'draw';
 		if (this.isCheckmate) {
@@ -242,6 +244,7 @@ export class GameStore {
 		}
 
 		const { error } = await supabase.from('partie').insert({
+			user_id: userId,
 			pgn: this.chess.pgn(),
 			white_player: whitePlayer,
 			black_player: blackPlayer,
@@ -259,6 +262,17 @@ export class GameStore {
 	private showNotification(message: string, type: 'success' | 'error') {
 		this.notification = { message, type };
 		setTimeout(() => { this.notification = null; }, 3000);
+	}
+
+	private async getCurrentUserId(silent = false): Promise<string | null> {
+		const { data, error } = await supabase.auth.getUser();
+		if (error || !data.user) {
+			if (!silent) {
+				this.showNotification('Bitte einloggen, um Daten zu speichern.', 'error');
+			}
+			return null;
+		}
+		return data.user.id;
 	}
 
 	private clearTacticsTimers() {
@@ -304,6 +318,8 @@ export class GameStore {
 		if (!this.tacticsPuzzle) {
 			return;
 		}
+		const userId = await this.getCurrentUserId(true);
+		if (!userId) return;
 
 		const topics = this.tacticsPuzzle.themes
 			.split(' ')
@@ -326,6 +342,7 @@ export class GameStore {
 			const { data: newPosition, error: insertPositionError } = await supabase
 				.from('position')
 				.insert({
+					user_id: userId,
 					fen: this.tacticsPuzzle.fen,
 					color_to_move: colorToMove,
 					correct_moves: this.tacticsCorrectMoves,
@@ -344,6 +361,7 @@ export class GameStore {
 
 		const { error } = await supabase.from('wrong_tactics').upsert(
 			{
+				user_id: userId,
 				puzzle_id: this.tacticsPuzzle.puzzleid,
 				rating: this.tacticsPuzzle.rating,
 				topics: topics,
@@ -353,7 +371,7 @@ export class GameStore {
 				position_id: positionId,
 				last_failed_at: new Date().toISOString()
 			},
-			{ onConflict: 'puzzle_id' }
+			{ onConflict: 'user_id,puzzle_id' }
 		);
 
 		if (error) {
@@ -425,6 +443,8 @@ export class GameStore {
 			this.showNotification('Keine Züge zum Speichern vorhanden.', 'error');
 			return;
 		}
+		const userId = await this.getCurrentUserId();
+		if (!userId) return;
 
 		let whitePlayer = 'User';
 		let blackPlayer = 'User';
@@ -450,6 +470,7 @@ export class GameStore {
 		}
 
 		const { error } = await supabase.from('partie').insert({
+			user_id: userId,
 			pgn,
 			white_player: whitePlayer,
 			black_player: blackPlayer,
@@ -473,6 +494,8 @@ export class GameStore {
 			this.showNotification('Position nach 0 Zügen muss nicht gespeichert werden.', 'error');
 			return;
 		}
+		const userId = await this.getCurrentUserId();
+		if (!userId) return;
 
 		const { data: existing } = await supabase
 			.from('position')
@@ -504,6 +527,7 @@ export class GameStore {
 		const { data: partieData, error: partieError } = await supabase
 			.from('partie')
 			.insert({
+				user_id: userId,
 				pgn,
 				white_player: whitePlayer,
 				black_player: blackPlayer,
@@ -522,6 +546,7 @@ export class GameStore {
 		const colorToMove = this.turn === 'w' ? 'white' : 'black';
 
 		const { error } = await supabase.from('position').insert({
+			user_id: userId,
 			fen,
 			color_to_move: colorToMove,
 			title: `Position nach Zug ${Math.ceil(this.history.length / 2)}`,
