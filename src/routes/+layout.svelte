@@ -129,6 +129,12 @@
 					: 'text-on-surface-variant hover:text-on-surface'} transition-colors">Tactics</a
 			>
 			<a
+				href="{base}/studies"
+				class="text-sm font-semibold {$page.url.pathname.startsWith(`${base}/studies`)
+					? 'text-primary'
+					: 'text-on-surface-variant hover:text-on-surface'} transition-colors">Studien</a
+			>
+			<a
 				href="{base}/history/"
 				class="text-sm font-semibold {$page.url.pathname === `${base}/history/`
 					? 'text-primary'
