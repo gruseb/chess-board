@@ -65,6 +65,7 @@
 		font-size: 2.9rem;
 		line-height: 1;
 		user-select: none;
+		pointer-events: none;
 	}
 	.piece-black {
 		color: #1a1a1a;

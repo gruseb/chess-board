@@ -412,7 +412,12 @@ export class GameStore {
 		this.tacticsIndex = 0;
 		this.tacticsSource = source;
 
-		this.chess = new Chess(puzzle.fen);
+		const newChess = new Chess(puzzle.fen);
+		if (puzzle.fen !== STARTING_FEN) {
+			newChess.header('SetUp', '1');
+			newChess.header('FEN', puzzle.fen);
+		}
+		this.chess = newChess;
 
 		const firstMove = this.tacticsCorrectMoves[0];
 		const setupMove = this.chess.move({
@@ -433,7 +438,13 @@ export class GameStore {
 	}
 
 	private syncChessFromFen() {
-		this.chess = new Chess(this.chess.fen());
+		const fen = this.chess.fen();
+		const newChess = new Chess(fen);
+		if (fen !== STARTING_FEN) {
+			newChess.header('SetUp', '1');
+			newChess.header('FEN', fen);
+		}
+		this.chess = newChess;
 	}
 
 	/** US13: Partie bis zum aktuellen Zeitpunkt speichern */
@@ -594,6 +605,41 @@ export class GameStore {
 		return this.analysisNodes.find(n => n.id === id);
 	}
 
+	private cloneChess(chessInstance: Chess): Chess {
+		const fen = chessInstance.fen();
+		try {
+			const newChess = new Chess();
+			const headers = chessInstance.header();
+			for (const [key, value] of Object.entries(headers)) {
+				if (typeof value === 'string') {
+					newChess.header(key, value);
+				}
+			}
+
+			const sourcePgn = chessInstance.pgn();
+			const hasFenHeader = sourcePgn.includes('[FEN ') || sourcePgn.includes('[SetUp ');
+			const initialFen = headers.FEN || (chessInstance.fen() !== STARTING_FEN ? chessInstance.fen() : null);
+
+			if (initialFen && !hasFenHeader) {
+				newChess.header('SetUp', '1');
+				newChess.header('FEN', initialFen);
+			}
+
+			newChess.loadPgn(chessInstance.pgn());
+			return newChess;
+		} catch (e) {
+			console.warn('PGN cloning failed, falling back to FEN cloning:', e);
+			const fallbackChess = new Chess(fen);
+			const headers = chessInstance.header();
+			for (const [key, value] of Object.entries(headers)) {
+				if (typeof value === 'string') {
+					fallbackChess.header(key, value);
+				}
+			}
+			return fallbackChess;
+		}
+	}
+
 	// Actions
 	move(from: string, to: string, promotion: string = 'q', isEngineMove: boolean = false) {
 		try {
@@ -642,9 +688,7 @@ export class GameStore {
 				if (this.isAnalyzing) this.triggerAnalysis();
 			}
 
-			const newChess = new Chess();
-			newChess.loadPgn(this.chess.pgn());
-			this.chess = newChess;
+			this.chess = this.cloneChess(this.chess);
 
 			if (this.isGameOver && this.mode !== 'analysis' && this.mode !== 'tactics') {
 				this.saveGame();
@@ -707,8 +751,11 @@ export class GameStore {
 		const node = this.analysisNodes.find(n => n.id === nodeId);
 		if (!node) return;
 		this.currentNodeId = nodeId;
-		const newChess = new Chess();
-		newChess.load(node.fen);
+		const newChess = new Chess(node.fen);
+		if (node.fen !== STARTING_FEN) {
+			newChess.header('SetUp', '1');
+			newChess.header('FEN', node.fen);
+		}
 		this.chess = newChess;
 		if (this.isAnalyzing) this.triggerAnalysis();
 	}
@@ -726,9 +773,7 @@ export class GameStore {
 		if (result && this.mode === 'engine') {
 			this.chess.undo();
 		}
-		const newChess = new Chess();
-		newChess.loadPgn(this.chess.pgn());
-		this.chess = newChess;
+		this.chess = this.cloneChess(this.chess);
 		return result;
 	}
 
@@ -848,6 +893,10 @@ export class GameStore {
 	loadFen(fen: string, targetMode: GameMode = 'local', startAnalysis: boolean = false) {
 		try {
 			const newChess = new Chess(fen);
+			if (fen !== STARTING_FEN) {
+				newChess.header('SetUp', '1');
+				newChess.header('FEN', fen);
+			}
 			this.chess = newChess;
 			this.mode = targetMode;
 			this.viewPgn = targetMode === 'view' ? newChess.pgn() : null;

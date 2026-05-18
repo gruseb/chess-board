@@ -54,7 +54,11 @@
 		if (e.dataTransfer) {
 			const fromSquare = e.dataTransfer.getData('text/plain');
 			if (fromSquare && fromSquare !== toSquare) {
-				game.move(fromSquare, toSquare);
+				const result = game.move(fromSquare, toSquare);
+				if (!result) {
+					targetSquare = toSquare;
+					setTimeout(() => { targetSquare = null; }, 500);
+				}
 				selectedSquare = null;
 			}
 		}
@@ -112,9 +116,9 @@
 							<div class="absolute inset-0 bg-primary/20 border-2 border-primary shadow-[inset_0_0_15px_rgba(255,145,84,0.3)] pointer-events-none"></div>
 						{/if}
 						
-						<!-- Empty Square Click Feedback -->
-						{#if targetSquare === square && !piece}
-							<div class="absolute w-4 h-4 bg-error/40 rounded-full animate-ping pointer-events-none"></div>
+						<!-- Empty Square Click Feedback / Illegal Move Feedback -->
+						{#if targetSquare === square}
+							<div class="absolute w-12 h-12 bg-error/35 rounded-full animate-ping pointer-events-none z-30"></div>
 						{/if}
 
 						<!-- The Piece -->

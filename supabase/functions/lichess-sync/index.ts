@@ -66,16 +66,18 @@ Deno.serve(async (req) => {
             });
         }
 
+        const lichessHeaders: Record<string, string> = {
+            Accept: "application/x-ndjson"
+        };
+        if (lichessConfig.api_token && lichessConfig.api_token.trim().length > 0) {
+            lichessHeaders.Authorization = `Bearer ${lichessConfig.api_token.trim()}`;
+        }
+
         let response: Response;
         try {
             response = await fetch(
                 `https://lichess.org/api/games/user/${lichessConfig.lichess_username}?max=${maxGames}&perfType=${perfType}&pgnInJson=true`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${lichessConfig.api_token}`,
-                        Accept: "application/x-ndjson"
-                    }
-                }
+                { headers: lichessHeaders }
             );
         } catch (fetchError) {
             return new Response(
@@ -138,7 +140,9 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: `Unexpected error: ${String(error)}` }), {
+        const message = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error);
+        console.error("lichess-sync unexpected error:", message);
+        return new Response(JSON.stringify({ error: `Unexpected error: ${message}` }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         });

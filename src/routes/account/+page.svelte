@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { supabase } from '$lib/supabaseClient';
+	import type { User } from '@supabase/supabase-js';
 
 	let email = $state('');
 	let password = $state('');
-	let user = $state<{ email?: string } | null>(null);
+	let user = $state<User | null>(null);
 	let authError = $state<string | null>(null);
 	let authMessage = $state<string | null>(null);
 	let isLoading = $state(false);
@@ -127,16 +128,22 @@
 			lichessError = 'Bitte zuerst einloggen.';
 			return;
 		}
-		if (!lichessUsername || !lichessToken) {
-			lichessError = 'Bitte Username und Token angeben.';
+		if (!lichessUsername) {
+			lichessError = 'Bitte Username angeben.';
 			return;
 		}
 
-		const { error } = await supabase.from('user_lichess').upsert({
+		const payload: { user_id: string; lichess_username: string; api_token?: string | null } = {
 			user_id: user.id,
-			lichess_username: lichessUsername.trim(),
-			api_token: lichessToken.trim()
-		});
+			lichess_username: lichessUsername.trim()
+		};
+		if (lichessToken.trim().length > 0) {
+			payload.api_token = lichessToken.trim();
+		} else {
+			payload.api_token = null;
+		}
+
+		const { error } = await supabase.from('user_lichess').upsert(payload);
 
 		if (error) {
 			lichessError = error.message;
@@ -283,7 +290,8 @@
 	>
 		<h2 class="text-lg font-bold text-secondary">Lichess verbinden</h2>
 		<p class="mt-2 text-sm text-on-surface-variant">
-			Lege deinen Lichess Username und API-Token fest, damit deine Partien synchronisiert werden.
+			Lege deinen Lichess Username fest, damit deine oeffentlichen Partien synchronisiert werden. Der
+			API-Token ist optional und nur fuer private Partien noetig.
 		</p>
 		<div class="mt-4 grid gap-4">
 			<label class="space-y-2 text-sm">
@@ -296,7 +304,7 @@
 				/>
 			</label>
 			<label class="space-y-2 text-sm">
-				<span class="font-semibold text-on-surface">API Token</span>
+				<span class="font-semibold text-on-surface">API Token (optional)</span>
 				<input
 					class="w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-on-surface"
 					type="password"
