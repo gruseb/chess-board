@@ -19,23 +19,26 @@
 	async function refreshUser() {
 		const { data } = await supabase.auth.getSession();
 		user = data.session?.user ?? null;
-	}
-
-	$effect(() => {
-		// Subscribe to page transitions to reactively update the username
-		const path = $page.url.pathname;
 		
 		if (user) {
-			supabase
+			const { data: lichessData } = await supabase
 				.from('user_lichess')
 				.select('lichess_username')
 				.eq('user_id', user.id)
-				.maybeSingle()
-				.then(({ data }) => {
-					lichessUsername = data?.lichess_username ?? null;
-				});
+				.maybeSingle();
+			
+			const fallback = user.email ? user.email.split('@')[0] : 'Player 1';
+			lichessUsername = lichessData?.lichess_username ?? fallback;
 		} else {
 			lichessUsername = null;
+		}
+	}
+
+	$effect(() => {
+		if (lichessUsername) {
+			localStorage.setItem('cached_username', lichessUsername);
+		} else {
+			localStorage.removeItem('cached_username');
 		}
 	});
 
@@ -46,6 +49,9 @@
 	}
 
 	onMount(() => {
+		// Load cached username immediately to prevent visual flash
+		lichessUsername = localStorage.getItem('cached_username');
+
 		const saved = localStorage.getItem('theme');
 		if (saved === 'plain' || saved === 'halloween') {
 			applyTheme(saved);
@@ -58,8 +64,21 @@
 			void refreshUser();
 		});
 
+		// Subscribe to real-time updates for instantly synchronizing Lichess username setting
+		const channel = supabase
+			.channel('public:user_lichess')
+			.on(
+				'postgres_changes',
+				{ event: '*', schema: 'public', table: 'user_lichess' },
+				() => {
+					void refreshUser();
+				}
+			)
+			.subscribe();
+
 		return () => {
 			authSubscription.subscription.unsubscribe();
+			void supabase.removeChannel(channel);
 		};
 	});
 </script>

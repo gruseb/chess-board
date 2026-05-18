@@ -7,7 +7,10 @@
 	import { fly } from 'svelte/transition';
 
 	onMount(() => {
-		game.setMode('analysis');
+		if (game.mode !== 'analysis') {
+			game.engineAnalysisAllowed = true;
+			game.setMode('analysis');
+		}
 	});
 </script>
 

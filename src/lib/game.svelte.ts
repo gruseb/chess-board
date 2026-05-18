@@ -118,6 +118,7 @@ export class GameStore {
 	// Analysis state – flat array, guaranteed reactive
 	analysisEvaluation = $state<number | string>(0);
 	isAnalyzing = $state(false);
+	engineAnalysisAllowed = $state(true);
 	analysisNodes = $state<AnalysisNode[]>([
 		{ id: 'root', san: '', fen: STARTING_FEN, parentId: null }
 	]);
@@ -583,6 +584,9 @@ export class GameStore {
 	get history() { return this.chess.history({ verbose: true }); }
 	get fen() { return this.chess.fen(); }
 	get totalHistoryCount() {
+		if (this.mode === 'analysis') {
+			return this.getActiveBranch().length - 1;
+		}
 		const pgn = this.mode === 'view' ? this.viewPgn : (this.activePgn || this.chess.pgn());
 		if (!pgn) return this.history.length;
 		// A bit expensive, but only called when history changes or we navigate
@@ -593,6 +597,49 @@ export class GameStore {
 		} catch {
 			return this.history.length;
 		}
+	}
+
+	get viewMoveIndex(): number {
+		if (this.mode === 'analysis') {
+			const branch = this.getActiveBranch();
+			const idx = branch.findIndex(n => n.id === this.currentNodeId);
+			return idx >= 0 ? idx : 0;
+		}
+		if (this.viewIndex === -1) return this.totalHistoryCount;
+		if (this.viewIndex === -2) return 0;
+		return this.viewIndex + 1;
+	}
+
+	get totalMoveCount(): number {
+		return this.totalHistoryCount;
+	}
+
+	getAnalysisPath(): AnalysisNode[] {
+		const path: AnalysisNode[] = [];
+		let id: string | null = this.currentNodeId;
+		while (id) {
+			const node = this.analysisNodes.find(n => n.id === id);
+			if (!node) break;
+			path.unshift(node);
+			id = node.parentId;
+		}
+		return path;
+	}
+
+	getActiveBranch(): AnalysisNode[] {
+		const branch: AnalysisNode[] = [];
+		const prefix = this.getAnalysisPath();
+		branch.push(...prefix);
+
+		let currentId = this.currentNodeId;
+		while (true) {
+			const children = this.getChildren(currentId);
+			if (children.length === 0) break;
+			const nextNode = children[0];
+			branch.push(nextNode);
+			currentId = nextNode.id;
+		}
+		return branch;
 	}
 
 	// Helper: get direct children of a node by id
@@ -711,6 +758,7 @@ export class GameStore {
 		}
 		this.mode = newMode;
 		if (newMode === 'analysis') {
+			this.engineAnalysisAllowed = true;
 			this.resetAnalysis();
 		} else {
 			this.reset();
@@ -744,7 +792,7 @@ export class GameStore {
 			{ id: 'root', san: '', fen: STARTING_FEN, parentId: null }
 		];
 		this.currentNodeId = 'root';
-		this.toggleAnalysis(true);
+		this.toggleAnalysis(this.engineAnalysisAllowed);
 	}
 
 	jumpToNodeById(nodeId: string) {
@@ -757,6 +805,17 @@ export class GameStore {
 			newChess.header('FEN', node.fen);
 		}
 		this.chess = newChess;
+
+		if (this.mode === 'analysis') {
+			const branch = this.getActiveBranch();
+			const idx = branch.findIndex(n => n.id === nodeId);
+			if (idx === branch.length - 1) {
+				this.viewIndex = -1;
+			} else {
+				this.viewIndex = idx - 1;
+			}
+		}
+
 		if (this.isAnalyzing) this.triggerAnalysis();
 	}
 
@@ -778,7 +837,29 @@ export class GameStore {
 	}
 
 	jumpToHistoryIndex(index: number, force: boolean = false) {
-		if (!force && this.mode !== 'view' && this.mode !== 'local' && this.mode !== 'engine') return;
+		if (!force && this.mode !== 'view' && this.mode !== 'local' && this.mode !== 'engine' && this.mode !== 'analysis') return;
+
+		if (this.mode === 'analysis') {
+			const branch = this.getActiveBranch();
+			if (index === -2) {
+				this.jumpToNodeById('root');
+				this.viewIndex = -2;
+				return;
+			}
+			if (index === -1) {
+				const lastNode = branch[branch.length - 1];
+				this.jumpToNodeById(lastNode.id);
+				this.viewIndex = -1;
+				return;
+			}
+			const targetBranchIndex = index + 1;
+			if (targetBranchIndex >= 0 && targetBranchIndex < branch.length) {
+				const targetNode = branch[targetBranchIndex];
+				this.jumpToNodeById(targetNode.id);
+				this.viewIndex = index;
+			}
+			return;
+		}
 
 		// When starting to navigate in local/engine mode, capture the current PGN
 		if (this.mode !== 'view' && this.viewIndex === -1 && index !== -1) {
@@ -806,6 +887,20 @@ export class GameStore {
 			return;
 		}
 
+		// index -2 means go to the very beginning (starting position)
+		if (index === -2) {
+			const newChess = new Chess();
+			const setupFen = tempChess.header().FEN;
+			if (setupFen) {
+				newChess.load(setupFen);
+				newChess.header('SetUp', '1');
+				newChess.header('FEN', setupFen);
+			}
+			this.chess = newChess;
+			this.viewIndex = -2;
+			return;
+		}
+
 		if (index < 0 || index >= history.length) return;
 
 		const newChess = new Chess();
@@ -819,6 +914,61 @@ export class GameStore {
 		}
 		this.chess = newChess;
 		this.viewIndex = index;
+	}
+
+	navigateHistory(direction: 'prev' | 'next' | 'start' | 'end') {
+		if (this.mode === 'analysis') {
+			const branch = this.getActiveBranch();
+			const idx = branch.findIndex(n => n.id === this.currentNodeId);
+			if (direction === 'start') {
+				this.jumpToNodeById('root');
+			} else if (direction === 'end') {
+				this.jumpToNodeById(branch[branch.length - 1].id);
+			} else if (direction === 'prev') {
+				if (idx > 0) {
+					this.jumpToNodeById(branch[idx - 1].id);
+				}
+			} else if (direction === 'next') {
+				if (idx < branch.length - 1) {
+					this.jumpToNodeById(branch[idx + 1].id);
+				}
+			}
+			return;
+		}
+
+		const total = this.totalHistoryCount;
+		if (direction === 'start') {
+			this.jumpToHistoryIndex(-2);
+		} else if (direction === 'end') {
+			this.jumpToHistoryIndex(-1);
+		} else if (direction === 'prev') {
+			let currentIdx = this.viewIndex;
+			if (currentIdx === -1) {
+				currentIdx = total - 1;
+			} else if (currentIdx === -2) {
+				return;
+			}
+			
+			if (currentIdx === 0) {
+				this.jumpToHistoryIndex(-2);
+			} else {
+				this.jumpToHistoryIndex(currentIdx - 1);
+			}
+		} else if (direction === 'next') {
+			let currentIdx = this.viewIndex;
+			if (currentIdx === -1) {
+				return;
+			} else if (currentIdx === -2) {
+				currentIdx = -1;
+			}
+			
+			const nextIdx = currentIdx + 1;
+			if (nextIdx >= total - 1) {
+				this.jumpToHistoryIndex(-1);
+			} else {
+				this.jumpToHistoryIndex(nextIdx);
+			}
+		}
 	}
 
 	async deleteGame(id: string) {
@@ -839,13 +989,50 @@ export class GameStore {
 		return (now - createdDate) >= ANALYSIS_DELAY_MS;
 	}
 
-	loadPgn(pgn: string, targetMode: GameMode = 'local', startAnalysis: boolean = false) {
+	async loadPgn(pgn: string, targetMode: GameMode = 'local', startAnalysis: boolean = false, engineAnalysisAllowed: boolean = true) {
 		try {
 			const newChess = new Chess();
 			newChess.loadPgn(pgn);
 			this.chess = newChess;
 			this.mode = targetMode;
 			this.viewPgn = targetMode === 'view' ? pgn : null;
+			this.engineAnalysisAllowed = engineAnalysisAllowed;
+
+			// Determine player perspective automatically based on PGN headers and user profile
+			const headers = newChess.header();
+			const whiteName = headers.White || '';
+			const blackName = headers.Black || '';
+
+			// Default to White
+			this.playerColor = 'w';
+
+			const userId = await this.getCurrentUserId(true);
+			if (userId) {
+				const { data: lichess } = await supabase
+					.from('user_lichess')
+					.select('lichess_username')
+					.eq('user_id', userId)
+					.maybeSingle();
+				
+				const lichessName = lichess?.lichess_username ?? null;
+				const { data: authData } = await supabase.auth.getUser();
+				const email = authData.user?.email ?? '';
+				const emailPrefix = email.split('@')[0];
+
+				const userIdentifiers = [
+					lichessName?.toLowerCase(),
+					email.toLowerCase(),
+					emailPrefix.toLowerCase(),
+					'user'
+				].filter(Boolean) as string[];
+
+				const isBlack = userIdentifiers.some(id => blackName.toLowerCase() === id);
+				const isWhite = userIdentifiers.some(id => whiteName.toLowerCase() === id);
+
+				if (isBlack && !isWhite) {
+					this.playerColor = 'b';
+				}
+			}
 
 			if (targetMode === 'analysis') {
 				// Reconstruct flat analysis tree from PGN
@@ -890,7 +1077,7 @@ export class GameStore {
 		}
 	}
 
-	loadFen(fen: string, targetMode: GameMode = 'local', startAnalysis: boolean = false) {
+	loadFen(fen: string, targetMode: GameMode = 'local', startAnalysis: boolean = false, engineAnalysisAllowed: boolean = true) {
 		try {
 			const newChess = new Chess(fen);
 			if (fen !== STARTING_FEN) {
@@ -900,6 +1087,8 @@ export class GameStore {
 			this.chess = newChess;
 			this.mode = targetMode;
 			this.viewPgn = targetMode === 'view' ? newChess.pgn() : null;
+			this.playerColor = newChess.turn(); // Align perspective with the active turn to move
+			this.engineAnalysisAllowed = engineAnalysisAllowed;
 
 			if (targetMode === 'analysis') {
 				this.analysisNodes = [

@@ -2,6 +2,13 @@
 	import ChessBoard from '$lib/components/ChessBoard.svelte';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import { game } from '$lib/game.svelte';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		if (game.mode === 'analysis' || game.mode === 'view') {
+			game.setMode('local');
+		}
+	});
 </script>
 
 <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">

@@ -186,7 +186,7 @@
 
 									<button
 										onclick={() => {
-											game.loadPgn(match.pgn, 'analysis');
+											game.loadPgn(match.pgn, 'analysis', false, false);
 											goto(`${base}/analysis`);
 										}}
 										class="rounded-lg p-2 text-on-surface-variant transition-all hover:bg-primary/10 hover:text-primary"

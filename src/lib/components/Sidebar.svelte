@@ -119,10 +119,14 @@
 			<div class="flex items-center justify-between p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/10">
 				<span class="text-sm font-medium text-on-surface">Stockfish Analyse</span>
 				<button 
-					class="w-12 h-6 rounded-full transition-colors relative {game.isAnalyzing ? 'bg-primary' : 'bg-surface-container-highest'}"
-					onclick={() => game.toggleAnalysis()}
+					class="w-12 h-6 rounded-full transition-colors relative {game.isAnalyzing ? 'bg-primary' : 'bg-surface-container-highest'} {!game.engineAnalysisAllowed ? 'opacity-30 cursor-not-allowed' : ''}"
+					onclick={() => {
+						if (!game.engineAnalysisAllowed) return;
+						game.toggleAnalysis();
+					}}
+					disabled={!game.engineAnalysisAllowed}
 					aria-label="Stockfish Analyse umschalten"
-					title="Stockfish Analyse umschalten"
+					title={game.engineAnalysisAllowed ? 'Stockfish Analyse umschalten' : 'In der Selbstanalyse deaktiviert'}
 				>
 					<div class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform {game.isAnalyzing ? 'translate-x-6' : ''}"></div>
 				</button>

@@ -91,7 +91,7 @@
 
                 <button 
                     onclick={() => {
-                        game.loadPgn(data.game.pgn, 'analysis');
+                        game.loadPgn(data.game.pgn, 'analysis', false, false);
                         goto(`${base}/analysis`);
                     }}
                     class="flex flex-col items-center gap-2 p-3 bg-surface-container-highest/50 rounded-xl hover:bg-primary/10 text-on-surface hover:text-primary transition-all border border-outline-variant/10"

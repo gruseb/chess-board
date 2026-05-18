@@ -70,17 +70,9 @@
 		if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
 
 		if (e.key === 'ArrowLeft') {
-			const current = game.viewIndex === -1 ? game.totalHistoryCount - 1 : game.viewIndex;
-			game.jumpToHistoryIndex(current - 1);
+			game.navigateHistory('prev');
 		} else if (e.key === 'ArrowRight') {
-			if (game.viewIndex !== -1) {
-				const next = game.viewIndex + 1;
-				if (next >= game.totalHistoryCount - 1) {
-					game.jumpToHistoryIndex(-1);
-				} else {
-					game.jumpToHistoryIndex(next);
-				}
-			}
+			game.navigateHistory('next');
 		}
 	}
 </script>
@@ -134,48 +126,38 @@
 	<!-- Navigation Controls (US 19) - Always visible for consistency -->
 	<div class="flex items-center justify-center gap-2 bg-surface-container-low p-2 rounded-xl border border-outline-variant/10 shadow-lg">
 		<button 
-			onclick={() => game.jumpToHistoryIndex(-1)}
-			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all"
+			onclick={() => game.navigateHistory('start')}
+			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+			disabled={game.viewMoveIndex <= 0}
 			title="Zum Anfang"
 		>
 			<span class="material-symbols-outlined text-2xl">first_page</span>
 		</button>
 		<button 
-			onclick={() => {
-				const current = game.viewIndex === -1 ? game.totalHistoryCount - 1 : game.viewIndex;
-				game.jumpToHistoryIndex(current - 1);
-			}}
-			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all"
+			onclick={() => game.navigateHistory('prev')}
+			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+			disabled={game.viewMoveIndex <= 0}
 			title="Vorheriger Zug"
 		>
 			<span class="material-symbols-outlined text-2xl">chevron_left</span>
 		</button>
 		
 		<div class="px-4 py-1.5 font-mono text-sm font-bold text-primary bg-primary/10 rounded-lg border border-primary/20 min-w-[100px] text-center shadow-inner">
-			{game.viewIndex === -1 ? game.totalHistoryCount : game.viewIndex + 1} / {game.totalHistoryCount}
+			{game.viewMoveIndex} / {game.totalMoveCount}
 		</div>
 
 		<button 
-			onclick={() => {
-				if (game.viewIndex !== -1) {
-					const next = game.viewIndex + 1;
-					if (next >= game.totalHistoryCount - 1) {
-						game.jumpToHistoryIndex(-1);
-					} else {
-						game.jumpToHistoryIndex(next);
-					}
-				}
-			}}
-			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20"
-			disabled={game.viewIndex === -1}
+			onclick={() => game.navigateHistory('next')}
+			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+			disabled={game.viewMoveIndex >= game.totalMoveCount}
 			title="Nächster Zug"
 		>
 			<span class="material-symbols-outlined text-2xl">chevron_right</span>
 		</button>
 		<button 
-			onclick={() => game.jumpToHistoryIndex(-1)}
-			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20"
-			disabled={game.viewIndex === -1}
+			onclick={() => game.navigateHistory('end')}
+			class="p-2 rounded-lg hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-all disabled:opacity-20 disabled:hover:bg-transparent"
+			disabled={game.viewMoveIndex >= game.totalMoveCount}
 			title="Zum Ende"
 		>
 			<span class="material-symbols-outlined text-2xl">last_page</span>
