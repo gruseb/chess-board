@@ -39,7 +39,7 @@
 4. Als Benutzer möchte ich wichtige Stellungen (keine klassischen Taktikpuzzles) aus meinen privaten Lichess-Studien importieren und trainieren können.
    - Ein Zug, der in der Lichess-Studie mit einem Rufzeichen (`!` oder `!!`) markiert ist, gilt als der gesuchte „wichtige Zug“.
    - Die Stellung (FEN) *vor* diesem Zug wird als Trainingsstellung gespeichert.
-   - Der Studienkommentar, der in der Studie zu diesem Zug hinzugefügt wurde, soll beim erfolgreichen Lösen als Erklärung angezeigt werden.
+   - Der Studienkommentar, der in der Studie VOR oder NACH diesem Zug hinzugefügt wurde, soll beim erfolgreichen Lösen als Erklärung angezeigt werden.
    - In der Datenbank (`public.position` Tabelle) soll ersichtlich sein, zu welcher Lichess-Studie diese Stellung gehört (über optionale Felder `study_id` und `study_title`). Wenn eine Stellung nicht aus einer Lichess-Studie stammt, müssen diese Felder `null` sein.
    - Es soll ein eigener Trainingsreiter oder Bereich für diese Studien-Positionen existieren, in dem man die importierten Positionen strukturiert trainieren kann.
 

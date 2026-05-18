@@ -20,6 +20,11 @@
 	let lichessError = $state<string | null>(null);
 	let lastLoadedUserId = $state<string | null>(null);
 
+	// connection state for showing connected UI instead of the form
+	let isLichessConnected = $state(false);
+	let lichessConnectedUsername = $state('');
+	let lichessConnectedHasToken = $state(false);
+
 	async function refreshSession() {
 		const { data } = await supabase.auth.getSession();
 		user = data.session?.user ?? null;
@@ -29,7 +34,7 @@
 		if (!user) return;
 		const { data, error } = await supabase
 			.from('user_lichess')
-			.select('lichess_username')
+			.select('lichess_username, api_token')
 			.eq('user_id', user.id)
 			.maybeSingle();
 
@@ -37,8 +42,17 @@
 			return;
 		}
 
-		if (data?.lichess_username) {
+		if (data) {
+			isLichessConnected = true;
+			lichessConnectedUsername = data.lichess_username;
 			lichessUsername = data.lichess_username;
+			lichessConnectedHasToken = !!data.api_token;
+		} else {
+			isLichessConnected = false;
+			lichessConnectedUsername = '';
+			lichessConnectedHasToken = false;
+			lichessUsername = '';
+			lichessToken = '';
 		}
 	}
 
@@ -121,37 +135,107 @@
 		await refreshSession();
 	}
 
-	async function saveLichessConfig() {
+	async function disconnectLichess() {
 		lichessError = null;
 		lichessMessage = null;
-		if (!user) {
-			lichessError = 'Bitte zuerst einloggen.';
-			return;
-		}
-		if (!lichessUsername) {
-			lichessError = 'Bitte Username angeben.';
-			return;
-		}
+		if (!user) return;
 
-		const payload: { user_id: string; lichess_username: string; api_token?: string | null } = {
-			user_id: user.id,
-			lichess_username: lichessUsername.trim()
-		};
-		if (lichessToken.trim().length > 0) {
-			payload.api_token = lichessToken.trim();
-		} else {
-			payload.api_token = null;
-		}
-
-		const { error } = await supabase.from('user_lichess').upsert(payload);
+		const { error } = await supabase
+			.from('user_lichess')
+			.delete()
+			.eq('user_id', user.id);
 
 		if (error) {
 			lichessError = error.message;
 			return;
 		}
 
-		lichessMessage = 'Lichess-Verknuepfung gespeichert.';
+		lichessMessage = 'Verbindung zu Lichess getrennt.';
+		isLichessConnected = false;
+		lichessConnectedUsername = '';
+		lichessConnectedHasToken = false;
+		lichessUsername = '';
 		lichessToken = '';
+	}
+
+	async function saveLichessConfig() {
+		lichessError = null;
+		lichessMessage = null;
+		isLoading = true;
+		if (!user) {
+			lichessError = 'Bitte zuerst einloggen.';
+			isLoading = false;
+			return;
+		}
+		if (!lichessUsername) {
+			lichessError = 'Bitte Username angeben.';
+			isLoading = false;
+			return;
+		}
+
+		let finalUsername = lichessUsername.trim();
+		let finalToken = lichessToken.trim();
+
+		// 1. Validierung des API-Tokens
+		if (finalToken.length > 0) {
+			try {
+				const res = await fetch('https://lichess.org/api/account', {
+					headers: {
+						'Authorization': `Bearer ${finalToken}`
+					}
+				});
+				if (!res.ok) {
+					lichessError = 'Ungueltiger Lichess-Token. Bitte ueberpruefe den Token und stelle sicher, dass er die study:read Berechtigung besitzt.';
+					isLoading = false;
+					return;
+				}
+				const lichessAccount = await res.json();
+				if (lichessAccount.username) {
+					finalUsername = lichessAccount.username;
+				}
+			} catch (e) {
+				lichessError = 'Konnte Lichess-API nicht kontaktieren. Bitte Internetverbindung pruefen.';
+				isLoading = false;
+				return;
+			}
+		} else {
+			// Nur Username angegeben -> Pruefen, ob Lichess-Benutzer existiert
+			try {
+				const res = await fetch(`https://lichess.org/api/user/${finalUsername}`);
+				if (!res.ok) {
+					lichessError = `Der Lichess-Benutzer "${finalUsername}" wurde nicht gefunden. Bitte ueberpruefe den Namen.`;
+					isLoading = false;
+					return;
+				}
+			} catch (e) {
+				lichessError = 'Konnte Lichess-API nicht kontaktieren. Bitte Internetverbindung pruefen.';
+				isLoading = false;
+				return;
+			}
+		}
+
+		const payload: { user_id: string; lichess_username: string; api_token?: string | null } = {
+			user_id: user.id,
+			lichess_username: finalUsername
+		};
+		if (finalToken.length > 0) {
+			payload.api_token = finalToken;
+		} else {
+			payload.api_token = null;
+		}
+
+		const { error } = await supabase.from('user_lichess').upsert(payload);
+
+		isLoading = false;
+
+		if (error) {
+			lichessError = error.message;
+			return;
+		}
+
+		lichessMessage = 'Lichess-Verknuepfung erfolgreich hergestellt!';
+		lichessToken = '';
+		await loadLichessConfig();
 	}
 </script>
 
@@ -285,52 +369,111 @@
 		{/if}
 	</section>
 
-	<section
-		class="rounded-3xl border border-outline-variant/10 bg-surface-container-low p-6 shadow-xl"
-	>
-		<h2 class="text-lg font-bold text-secondary">Lichess verbinden</h2>
-		<p class="mt-2 text-sm text-on-surface-variant">
-			Lege deinen Lichess Username fest, damit deine oeffentlichen Partien synchronisiert werden. Der
-			API-Token ist optional und nur fuer private Partien noetig.
-		</p>
-		<div class="mt-4 grid gap-4">
-			<label class="space-y-2 text-sm">
-				<span class="font-semibold text-on-surface">Lichess Username</span>
-				<input
-					class="w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-on-surface"
-					placeholder="sebastianflorian2000"
-					bind:value={lichessUsername}
-					disabled={!user}
-				/>
-			</label>
-			<label class="space-y-2 text-sm">
-				<span class="font-semibold text-on-surface">API Token (optional)</span>
-				<input
-					class="w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-on-surface"
-					type="password"
-					placeholder="lichess-api-token"
-					bind:value={lichessToken}
-					disabled={!user}
-				/>
-			</label>
-			<button
-				class="w-fit rounded-xl bg-secondary px-4 py-2 font-bold text-on-secondary-container shadow-lg shadow-secondary/20 transition-all disabled:opacity-50"
-				onclick={saveLichessConfig}
-				disabled={!user}
-			>
-				Speichern
-			</button>
-		</div>
-		{#if lichessError}
-			<p class="mt-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
-				{lichessError}
+	{#if isLichessConnected}
+		<section
+			class="rounded-3xl border border-outline-variant/10 bg-surface-container-low p-6 shadow-xl"
+		>
+			<div class="flex items-center gap-2">
+				<span class="material-symbols-outlined text-3xl text-emerald-400">verified</span>
+				<h2 class="text-lg font-bold text-emerald-400">Verbunden mit Lichess</h2>
+			</div>
+			<p class="mt-2 text-sm text-on-surface-variant">
+				Deine Lichess-Verbindung ist aktiv. Wichtige Positionen aus privaten Studien und deine Spielpartien koennen nun synchronisiert werden.
 			</p>
-		{:else if lichessMessage}
-			<p
-				class="mt-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary"
-			>
-				{lichessMessage}
+			
+			<div class="mt-6 flex flex-col gap-4 rounded-2xl bg-surface-container-highest/30 p-4 border border-outline-variant/5">
+				<div class="flex items-center justify-between text-sm">
+					<span class="text-on-surface-variant font-medium">Lichess-Username</span>
+					<span class="font-bold text-on-surface">{lichessConnectedUsername}</span>
+				</div>
+				<div class="flex items-center justify-between text-sm border-t border-outline-variant/10 pt-3">
+					<span class="text-on-surface-variant font-medium">API-Token Status</span>
+					<span class="font-bold text-on-surface flex items-center gap-1.5">
+						{#if lichessConnectedHasToken}
+							<span class="material-symbols-outlined text-emerald-400 text-base">lock</span>
+							Aktiv & Hinterlegt
+						{:else}
+							<span class="material-symbols-outlined text-yellow-500 text-base">lock_open</span>
+							Nicht hinterlegt (nur oeffentliche Synchronisation)
+						{/if}
+					</span>
+				</div>
+			</div>
+			
+			<div class="mt-6 flex flex-wrap gap-3">
+				<button
+					class="rounded-xl border border-error/30 px-4 py-2 font-bold text-error transition-all hover:bg-error/5 hover:border-error"
+					onclick={disconnectLichess}
+					disabled={!user}
+				>
+					Verbindung trennen
+				</button>
+			</div>
+			
+			{#if lichessMessage}
+				<p class="mt-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary">
+					{lichessMessage}
+				</p>
+			{/if}
+			{#if lichessError}
+				<p class="mt-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+					{lichessError}
+				</p>
+			{/if}
+		</section>
+	{:else}
+		<section
+			class="rounded-3xl border border-outline-variant/10 bg-surface-container-low p-6 shadow-xl"
+		>
+			<h2 class="text-lg font-bold text-secondary">Lichess verbinden</h2>
+			<p class="mt-2 text-sm text-on-surface-variant">
+				Lege deinen Lichess Username fest, damit deine oeffentlichen Partien synchronisiert werden. Der
+				API-Token ist optional und nur fuer private Partien noetig.
 			</p>
-		{/if}
-	</section>
+			<div class="mt-4 grid gap-4">
+				<label class="space-y-2 text-sm">
+					<span class="font-semibold text-on-surface">Lichess Username</span>
+					<input
+						class="w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-on-surface"
+						placeholder="sebastianflorian2000"
+						bind:value={lichessUsername}
+						disabled={!user || isLoading}
+					/>
+				</label>
+				<label class="space-y-2 text-sm">
+					<span class="font-semibold text-on-surface">API Token (optional)</span>
+					<input
+						class="w-full rounded-xl border border-outline-variant/20 bg-surface-container-highest px-3 py-2 text-on-surface"
+						type="password"
+						placeholder="lichess-api-token"
+						bind:value={lichessToken}
+						disabled={!user || isLoading}
+					/>
+				</label>
+				<button
+					class="w-fit rounded-xl bg-secondary px-4 py-2 font-bold text-on-secondary-container shadow-lg shadow-secondary/20 transition-all disabled:opacity-50 flex items-center gap-2"
+					onclick={saveLichessConfig}
+					disabled={!user || isLoading}
+				>
+					{#if isLoading}
+						<span class="material-symbols-outlined animate-spin text-sm">progress_activity</span>
+						Ueberpruefe...
+					{:else}
+						Speichern
+					{/if}
+				</button>
+			</div>
+			{#if lichessError}
+				<p class="mt-3 rounded-xl border border-error/30 bg-error/10 px-3 py-2 text-sm text-error">
+					{lichessError}
+				</p>
+			{:else if lichessMessage}
+				<p
+					class="mt-3 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary"
+				>
+					{lichessMessage}
+				</p>
+			{/if}
+		</section>
+	{/if}
 </main>

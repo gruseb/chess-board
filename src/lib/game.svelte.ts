@@ -17,6 +17,8 @@ export interface TacticsPuzzle {
 	moves: string;
 	rating: number;
 	themes: string;
+	explanation?: string;
+	title?: string;
 }
 
 type TacticsSource = 'live' | 'retry';
@@ -1234,6 +1236,64 @@ export class GameStore {
 			this.tacticsStatus = 'error';
 			this.tacticsError = 'Die gespeicherte Fehlaufgabe konnte nicht geladen werden.';
 			this.showNotification('Fehler beim Laden der Fehlaufgaben.', 'error');
+		}
+	}
+
+	startStudyPuzzle(puzzle: TacticsPuzzle) {
+		this.resetTacticsState('playing');
+		this.mode = 'tactics';
+		this.tacticsPuzzle = puzzle;
+		this.tacticsCorrectMoves = typeof puzzle.moves === 'string' ? puzzle.moves.split(' ').filter(Boolean) : [];
+		this.tacticsIndex = 0;
+		this.tacticsSource = 'live';
+
+		const newChess = new Chess(puzzle.fen);
+		if (puzzle.fen !== STARTING_FEN) {
+			newChess.header('SetUp', '1');
+			newChess.header('FEN', puzzle.fen);
+		}
+		this.chess = newChess;
+		this.playerColor = this.turn;
+		this.tacticsStatus = 'playing';
+	}
+
+	async loadStudyPosition(id: string) {
+		const requestId = ++this.tacticsRequestId;
+		this.resetTacticsState('loading');
+		this.mode = 'tactics';
+		this.showNotification('Lade Studien-Aufgabe...', 'success');
+
+		try {
+			const { data, error } = await supabase
+				.from('position')
+				.select('id, fen, color_to_move, correct_moves, explanation, title')
+				.eq('id', id)
+				.single();
+
+			if (error) throw error;
+
+			if (requestId !== this.tacticsRequestId) return;
+
+			if (data) {
+				const puzzle: TacticsPuzzle = {
+					puzzleid: data.id,
+					fen: data.fen,
+					moves: (data.correct_moves || []).join(' '),
+					rating: 1500,
+					themes: 'Lichess Study',
+					explanation: data.explanation || '',
+					title: data.title || 'Studien-Aufgabe'
+				};
+
+				this.startStudyPuzzle(puzzle);
+				this.showNotification('Studien-Aufgabe bereit!', 'success');
+			}
+		} catch (e) {
+			if (requestId !== this.tacticsRequestId) return;
+			console.error('Failed to load study position:', e);
+			this.tacticsStatus = 'error';
+			this.tacticsError = 'Die Studien-Aufgabe konnte nicht geladen werden.';
+			this.showNotification('Fehler beim Laden der Studien-Aufgabe.', 'error');
 		}
 	}
 
